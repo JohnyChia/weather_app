@@ -107,105 +107,109 @@ class _ChartScreenState extends State<ChartScreen> {
     String today = widget.hourlyData.first.weatherDate;
     for (var data in widget.hourlyData) {
       if (data.weatherDate == today) {
-        xLabels.add(data.weatherTime);
+        xLabels.add(data.time);
         temperature.add(data.temp);
         humidity.add(data.humidity.toDouble());
       }
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SizedBox(
-        width: xLabels.length * 100,
-        height: 400,
-        child: LineChart(
-          LineChartData(
-            minY: 10,
-            maxY: 80,
-            titlesData: FlTitlesData(
-              topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false),
-              ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  interval: 1,
-                  getTitlesWidget: (value, meta) {
-                    int index = value.toInt();
-                    if (index < 0 || index >= xLabels.length) return const SizedBox();
-                    return Text(
-                      xLabels[index],
-                      style: const TextStyle(fontSize: 13, color: Colors.black),
-                    );
-                  },
+    return InteractiveViewer(
+        panEnabled: true,
+        scaleEnabled: true,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: xLabels.length * 100,
+            height: 800,
+            child: LineChart(
+            LineChartData(
+              minY: 10,
+              maxY: 100,
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    interval: 1,
+                    getTitlesWidget: (value, meta) {
+                      int index = value.toInt();
+                      if (index < 0 || index >= xLabels.length) return const SizedBox();
+                      return Text(
+                        xLabels[index],
+                        style: const TextStyle(fontSize: 13, color: Colors.black),
+                      );
+                    },
+                  ),
+                ),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      return Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(color: Colors.black, fontSize: 12),
+                      );
+                    },
+                  ),
+                ),
+                rightTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      return Text(
+                        value.toInt().toString(),
+                        style: const TextStyle(color: Colors.black, fontSize: 12),
+                      );
+                    },
+                  ),
                 ),
               ),
-              leftTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      value.toInt().toString(),
-                      style: const TextStyle(color: Colors.black, fontSize: 12),
-                    );
-                  },
-                ),
-              ),
-              rightTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      value.toInt().toString(),
-                      style: const TextStyle(color: Colors.black, fontSize: 12),
-                    );
-                  },
-                ),
-              ),
-            ),
 
-            lineTouchData: LineTouchData(
-              enabled: true,
-              handleBuiltInTouches: true,
-              touchTooltipData: LineTouchTooltipData(
-                getTooltipItems: (touchedSpots) {
-                  return touchedSpots.map((spot) {
-                    int index = spot.spotIndex.toInt();
-                    String label = xLabels[index];
-                    double temp = temperature[index];
-                    double hum = humidity[index];
-                    return LineTooltipItem(
-                      '$label\nTemperature: $temp°C\nHumidity: $hum%',
-                      const TextStyle(color: Colors.black),
-                    );
-                  }).toList();
-                },
+              lineTouchData: LineTouchData(
+                enabled: true,
+                handleBuiltInTouches: true,
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (touchedSpots) {
+                    return touchedSpots.map((spot) {
+                      int index = spot.spotIndex.toInt();
+                      String label = xLabels[index];
+                      double temp = temperature[index];
+                      double hum = humidity[index];
+                      return LineTooltipItem(
+                        '$label\nTemperature: $temp°C\nHumidity: $hum%',
+                        const TextStyle(color: Colors.black),
+                      );
+                    }).toList();
+                  },
+                ),
               ),
-            ),
 
-            lineBarsData: [
-              LineChartBarData(
-                spots: List.generate(
-                  temperature.length,
-                      (i) => FlSpot(i.toDouble(), temperature[i]),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: List.generate(
+                    temperature.length,
+                        (i) => FlSpot(i.toDouble(), temperature[i]),
+                  ),
+                  isCurved: true,
+                  color: Colors.red,
+                  barWidth: 4,
                 ),
-                isCurved: true,
-                color: Colors.red,
-                barWidth: 4,
-              ),
-              LineChartBarData(
-                spots: List.generate(
-                  humidity.length,
-                      (i) => FlSpot(i.toDouble(), humidity[i]),
+                LineChartBarData(
+                  spots: List.generate(
+                    humidity.length,
+                        (i) => FlSpot(i.toDouble(), humidity[i]),
+                  ),
+                  isCurved: true,
+                  color: Colors.blue,
+                  barWidth: 4,
                 ),
-                isCurved: true,
-                color: Colors.blue,
-                barWidth: 4,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
+        ),
     );
   }
 
@@ -283,69 +287,81 @@ class _ChartScreenState extends State<ChartScreen> {
     final maxUV = todayData.map((d) => d.uvIndex).reduce((a, b) => a > b ? a : b);
     final maxY = (maxUV > 0 ? (maxUV + 1) : 1).toDouble();
 
-    return SizedBox(
-      height: 300,
-      child: BarChart(
-        BarChartData(
-          maxY: maxY,
-          titlesData: FlTitlesData(
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  int index = value.toInt();
-                  if (index < 0 || index >= todayData.length) {
-                    return const SizedBox();
-                  }
-                  return Text(
-                    todayData[index].weatherTime,
-                    style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 12
-                    ),
-                  );
-                },
-              ),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: 1,
-                getTitlesWidget: (value, meta) {
-                  return Text(
-                    value.toInt().toString(),
-                    style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 12
-                    ),
-                  );
-                },
-              ),
-            ),
-            topTitles: const AxisTitles(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: todayData.length * 50,
+        height: maxY.ceilToDouble(),
+        child: BarChart(
+          BarChartData(
+            maxY: 20,
+            minY : 0,
+            titlesData: FlTitlesData(
+              bottomTitles: AxisTitles(
                 sideTitles: SideTitles(
-                    showTitles: false
-                )
-            ),
-            rightTitles: const AxisTitles(
-                sideTitles: SideTitles(
-                    showTitles: false
-                )
-            ),
-          ),
-          barGroups: List.generate(todayData.length, (i) {
-            return BarChartGroupData(
-              x: i,
-              barRods: [
-                BarChartRodData(
-                  toY: todayData[i].uvIndex,
-                  color: Colors.orange,
-                  width: 12,
+                  showTitles: true,
+                  interval: 1,
+                  getTitlesWidget: (value, meta) {
+                    int index = value.toInt();
+                    if (index < 0 || index >= todayData.length) {
+                      return const SizedBox();
+                    }
+
+                    return Transform.rotate(
+                      angle: -0.5,
+                      child: Text(
+                        todayData[index].weatherTime,
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 10,
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              ],
-            );
-          }),
-          borderData: FlBorderData(show: false),
+              ),
+
+              // ✅ Y-axis must be here (same level as bottomTitles)
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  interval: 1,
+                  getTitlesWidget: (value, meta) {
+                    return Text(
+                      value.toInt().toString(),
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 12,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // optional (hide right & top)
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+            ),
+
+            barGroups: List.generate(todayData.length, (i) {
+              return BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: todayData[i].uvIndex,
+                    color: Colors.orange,
+                    width: 10,
+                  ),
+                ],
+              );
+            }),
+
+            borderData: FlBorderData(show: false),
+          ),
         ),
       ),
     );

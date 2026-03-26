@@ -1,6 +1,7 @@
 import 'package:bcrypt/bcrypt.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:weather_app/Screens/weather_screen.dart';
 import '../Alarms/Admin/admin_Alarms.dart';
@@ -26,10 +27,19 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) FocusScope.of(context).requestFocus(usernameFocus);
-    });
+    _warmUpServer();
   }
+
+  Future<void> _warmUpServer() async {
+    try {
+      final url = Uri.parse('https://weather-api-nf24.onrender.com/health');
+      await http.get(url).timeout(const Duration(seconds: 5));
+      debugPrint("Server warmup completed");
+    } catch (e) {
+      debugPrint("Server warmup failed: $e");
+    }
+  }
+
 
   @override
   void dispose() {
@@ -68,14 +78,21 @@ class _LoginPageState extends State<LoginPage> {
 
         final role = res['role'];
 
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        if(!mounted){
+          return;
+        }
+
         // 根据角色跳转页面
         if (role == 'User') {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => UserAlarms(
+              builder: (_) => WeatherScreen(
                 username: res['username'],
                 email: res['email'] ?? '',
+                role: role,
               ),
             ),
           );
@@ -91,6 +108,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           );
         }
+
       } else {
         _showMessage("Incorrect password", isError: true);
       }

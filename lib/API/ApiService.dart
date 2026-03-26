@@ -26,23 +26,24 @@ class ApiService {
     }
   }
 
-  Future<List<HourlyData>> fetchHourlyForecast(double lat, double lon) async {
+  Future<Map<String, dynamic>> fetchHourlyForecast(double lat, double lon) async {
     final String url = '$_URL/weather/hourly/$lat/$lon';
 
-    try{
+    try {
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
-
-      if(response.statusCode == 200){
-        final List<dynamic> data = jsonDecode(response.body);
-        return data.map((item) => HourlyData.fromJson(item)).toList();
-      }else{
-        throw Exception('Failed to fetch hourly weather. Server responded with ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final List<dynamic> hourlyList = data['hourly'];
+        return {
+          'currentTime': data['currentTime'] ?? '',
+          'hourly': hourlyList.map((item) => HourlyData.fromJson(item)).toList(),
+        };
+      } else {
+        throw Exception('Failed to fetch hourly weather');
       }
-    }catch(e){
-      throw Exception('An error occurred: ${e.toString()}');
-      }
+    } catch (e) {
+      throw Exception('An error occurred: $e');
+    }
   }
 
   Future<List<HourlyData>> fetchFiveDayForecast(double lat, double lon) async {
@@ -60,6 +61,22 @@ class ApiService {
       } else {
         throw Exception(
             'Failed to fetch 5-day forecast. Server responded with ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('An error occurred: ${e.toString()}');
+    }
+  }
+
+  Future<dynamic> fetchNearestRisk() async {
+    final String url = '$_URL/nearest-risk';
+
+    try { final response = await http.get(Uri.parse(url)) .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data;
+      } else {
+        throw Exception( 'Failed to fetch nearest risk. Server responded with ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('An error occurred: ${e.toString()}');

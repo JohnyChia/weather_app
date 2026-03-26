@@ -7,8 +7,17 @@ class DbService {
     await _client.from(table).insert(data);
   }
 
-  static Future<List<dynamic>> view(String table) async {
+  static Future<List<dynamic>> viewAll(String table) async {
     return await _client.from(table).select();
+  }
+
+  static Future<List<dynamic>> view(
+      String table, Map<String, dynamic> conditions) async {
+    var query = _client.from(table).select();
+    conditions.forEach((key, value) {
+      query = query.eq(key, value);
+    });
+    return await query;
   }
 
   static Future<void> update(
@@ -16,8 +25,7 @@ class DbService {
     await _client.from(table).update(data).eq(column, value);
   }
 
-  static Future<void> delete(
-      String table, String column, dynamic value) async {
+  static Future<void> delete(String table, String column, dynamic value) async {
     await _client.from(table).delete().eq(column, value);
   }
 }

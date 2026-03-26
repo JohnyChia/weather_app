@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import '../API/NetworkTile.dart';
+import '../API/ApiService.dart';
 
 class MapScreen extends StatefulWidget {
   final double lat;
@@ -27,6 +28,9 @@ class _MapScreenState extends State<MapScreen> {
   String currentLayer = 'clouds_new';
   Set<TileOverlay> _tileOverlays = <TileOverlay>{};
   Marker? userMarker;
+
+  final ApiService apiService = ApiService();
+  Set<Marker> riskMarkers = {};
 
   @override
   void initState() {
@@ -60,10 +64,53 @@ class _MapScreenState extends State<MapScreen> {
           markerId: const MarkerId('user_location'),
           position: LatLng(userLat!, userLon!),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          infoWindow: const InfoWindow(title: 'You are here'),
         );
       }
     });
+    _loadNearestRisk();
+  }
+
+  Future<void> _loadNearestRisk() async {
+    if (userLat == null || userLon == null) return;
+
+    try {
+      final result = await apiService.fetchNearestRisk();
+
+      if (result != null && result is List) {
+        Set<Marker> markers = {};
+
+        for (var item in result) {
+          final lat = item['lat'];
+          final lon = item['lon'];
+          final risk = item['risk'];
+
+          if (lat == null || lon == null) continue;
+
+          final markerColor = risk == "High"
+              ? BitmapDescriptor.hueRed
+              : BitmapDescriptor.hueOrange;
+
+          markers.add(
+            Marker(
+              markerId: MarkerId(item['id']?.toString() ?? "$lat$lon"),
+              position: LatLng(lat, lon),
+              icon: BitmapDescriptor.defaultMarkerWithHue(markerColor),
+
+              infoWindow: InfoWindow(
+                title: item['city'] ?? 'Unknown City',
+                snippet: "Type: ${item['type'] ?? ''} | Risk: ${item['risk'] ?? ''}",
+              ),
+            ),
+          );
+        }
+
+        setState(() {
+          riskMarkers = markers;
+        });
+      }
+    } catch (e) {
+      print("Risk fetch error: $e");
+    }
   }
 
   void _addTileOverlay() {
@@ -107,9 +154,12 @@ class _MapScreenState extends State<MapScreen> {
           GoogleMap(
             initialCameraPosition: CameraPosition(
               target: LatLng(userLat!, userLon!),
-              zoom: 5,
+              zoom: 14,
             ),
-            markers: userMarker != null ? {userMarker!} : {},
+            markers: {
+              if (userMarker != null) userMarker!,
+              ...riskMarkers,
+            },
             tileOverlays: _tileOverlays,
             onMapCreated: (controller) {
               _controller.complete(controller);
@@ -178,4 +228,3 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 }
-

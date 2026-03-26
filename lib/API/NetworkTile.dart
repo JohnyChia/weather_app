@@ -15,7 +15,7 @@ class NetworkTileProvider implements TileProvider {
     }
 
     final url =
-        'https://unstabilising-karena-toric.ngrok-free.dev/api/tiles/$layer/$zoom/$x/$y.png?t=${DateTime.now().millisecondsSinceEpoch}';
+        'https://weather-api-nf24.onrender.com/api/tiles/$layer/$zoom/$x/$y.png?t=${DateTime.now().millisecondsSinceEpoch}';
 
     try {
       final response = await http.get(
