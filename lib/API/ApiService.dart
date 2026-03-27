@@ -10,7 +10,7 @@ class ApiService {
     final String url = '$_URL/weather/daily/$lat/$lon';
 
     try{
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
       print("Response status: ${response.statusCode}");
       print("Response body: ${response.body}");
 
@@ -70,7 +70,7 @@ class ApiService {
   Future<dynamic> fetchNearestRisk() async {
     final String url = '$_URL/nearest-risk';
 
-    try { final response = await http.get(Uri.parse(url)) .timeout(const Duration(seconds: 10));
+    try { final response = await http.get(Uri.parse(url)) .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

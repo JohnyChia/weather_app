@@ -309,8 +309,6 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => SolarScreen(
-                peakStart: peakStart,
-                peakEnd: peakEnd,
                 hourlyUV: widget.hourlyUV,
               )),
             );

@@ -81,6 +81,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
   Future<void> _fetchWeatherData() async {
     setState(() {
       _isLoading = true;
+
     });
     debugPrint("Fetching weather...");
 
@@ -110,6 +111,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
         _fiveDayForecast = fetchedFiveDay;
         _isLoading = false;
       });
+
+      NotificationService().checkRainAndNotify(_hourlyForecast!);
 
       debugPrint("Weather data loaded.");
     } catch (e) {
@@ -142,7 +145,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   void _startAlarmMonitoring() {
     _checkAlarms();
-    _alarmTime = Timer.periodic(const Duration(minutes: 2),
+    _alarmTime = Timer.periodic(const Duration(seconds : 10),
             (timer) { _checkAlarms(); });
   }
 
@@ -167,11 +170,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
           final alarmId = alarm['id'].toString();
           if (!triggeredAlarms.contains(alarmId)) {
             NotificationService().showAlarmNotification(
-              id: alarmId.hashCode,
+              id: alarm['id'].hashCode,
               title: "Weather Alert (${alarm['city']})",
               body: "${alarm['type']} - ${alarm['risk']}",
             );
-            triggeredAlarms.add(alarmId);
+            triggeredAlarms.add(alarm['id'].toString());
           }
         }
 
