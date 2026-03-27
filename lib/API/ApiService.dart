@@ -30,7 +30,7 @@ class ApiService {
     final String url = '$_URL/weather/hourly/$lat/$lon';
 
     try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         final List<dynamic> hourlyList = data['hourly'];
@@ -51,7 +51,7 @@ class ApiService {
 
     try {
       final response = await http.get(Uri.parse(url))
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
       print("Response status: ${response.statusCode}");
       print("Response body: ${response.body}");
 

@@ -24,6 +24,10 @@ class _UserAlarmsState extends State<UserAlarms> {
   @override
   void initState() {
     super.initState();
+
+    setState(() {
+      isLoading = false;
+    });
   }
 
   @override

@@ -239,7 +239,6 @@ class _AdminAlarmsState extends State<AdminAlarms>
 
     String riskLevel = "Low";
 
-    // ✅ 如果是 update，预填数据
     if (isUpdate && existingData != null) {
       descCtrl.text = existingData['description'] ?? '';
       final override = existingData['override_data'] ?? {};
@@ -289,13 +288,13 @@ class _AdminAlarmsState extends State<AdminAlarms>
                   controller: valueCtrl,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: _getFieldLabel(selectedType),
+                    labelText: getFieldLabel(selectedType),
                   ),
                   onChanged: (val) {
                     double? v = double.tryParse(val);
                     if (v != null) {
                       setStateDialog(() {
-                        riskLevel = _calculateRiskLevel(selectedType, v);
+                        riskLevel = calculateRiskLevel(selectedType, v);
                       });
                     }
                   },
@@ -328,13 +327,13 @@ class _AdminAlarmsState extends State<AdminAlarms>
                     return;
                   }
 
-                  String field = _getFieldKey(selectedType);
+                  String field = getFieldKey(selectedType);
 
                   Map<String, dynamic> overrideData = {
                     field: value
                   };
 
-                  String risk = _calculateRiskLevel(selectedType, value);
+                  String risk = calculateRiskLevel(selectedType, value);
 
                   if (risk != "High") {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -416,7 +415,9 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
-  String _getFieldKey(String type) {
+
+  //used by chongyi's city CRUD
+  String getFieldKey(String type) {
     switch (type) {
       case "Heatwave":
         return "temperature";
@@ -431,7 +432,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     }
   }
 
-  String _getFieldLabel(String type) {
+  String getFieldLabel(String type) {
     switch (type) {
       case "Heatwave":
         return "Temperature (°C)";
@@ -447,7 +448,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
   }
 }
 
-String _calculateRiskLevel(String type, double value) {
+String calculateRiskLevel(String type, double value) {
   switch (type) {
     case "Heatwave":
       if (value >= 35) return "High";

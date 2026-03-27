@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:vibration/vibration.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather_app/Screens/weather_map.dart';
 import '../Alarms/Admin/admin_Alarms.dart';
 import '../Alarms/User/user_Alarms.dart';
@@ -14,21 +14,22 @@ import '../models/weather_data.dart';
 import '../Location/LocationService.dart';
 import '../API/ApiService.dart';
 import '../Services/Notifications_services.dart';
+import 'Login.dart';
 
 
 String getWeatherIcon(String? weatherMain) {
   final weather = weatherMain?.toLowerCase();
 
   switch (weather) {
-    case 'Rain':
+    case 'rain':
       return 'assets/images/rainy_2d.png';
-    case 'Drizzle':
+    case 'drizzle':
       return 'assets/images/rainy_2d.png';
-    case 'Thunderstorm':
+    case 'thunderstorm':
       return 'assets/images/thunder_2d.png';
-    case 'Clouds':
+    case 'clouds':
       return 'assets/images/sunny_2d.png';
-    case 'Snow':
+    case 'snow':
       return 'assets/images/snow_2d.png';
     default:
       return 'assets/images/sunny_2d.png';
@@ -152,7 +153,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
       final position = await _locationService.determinePosition();
       final alarms = await DbService.viewAll('alarms');
 
-      nearbyAlarms.clear(); // 每次重新检查
+      nearbyAlarms.clear();
 
       for (var alarm in alarms) {
         if (alarm['lat'] == null || alarm['lon'] == null) continue;
@@ -192,8 +193,20 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   double _degToRad(double deg) {
     return deg * (pi / 180);
-
   }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -340,6 +353,14 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     ),
                   );
                 }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.white),
+              title: const Text('Logout', style: TextStyle(color: Colors.white)),
+              onTap: () async {
+                Navigator.pop(context);
+                await _logout();
               },
             ),
           ],

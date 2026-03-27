@@ -1,11 +1,8 @@
-import 'package:bcrypt/bcrypt.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:weather_app/Screens/weather_screen.dart';
-import '../Alarms/Admin/admin_Alarms.dart';
-import '../Alarms/User/user_Alarms.dart';
+import 'package:bcrypt/bcrypt.dart';
+import 'weather_screen.dart';
 import 'register.dart';
 
 class LoginPage extends StatefulWidget {
@@ -16,42 +13,21 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final _formKey = GlobalKey<FormState>();
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
-  final usernameFocus = FocusNode();
-  final passwordFocus = FocusNode();
-
   bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _warmUpServer();
-  }
-
-  Future<void> _warmUpServer() async {
-    try {
-      final url = Uri.parse('https://weather-api-nf24.onrender.com/health');
-      await http.get(url).timeout(const Duration(seconds: 5));
-      debugPrint("Server warmup completed");
-    } catch (e) {
-      debugPrint("Server warmup failed: $e");
-    }
-  }
-
-
-  @override
-  void dispose() {
-    usernameController.dispose();
-    passwordController.dispose();
-    usernameFocus.dispose();
-    passwordFocus.dispose();
-    super.dispose();
+    _checkLogin();
   }
 
   Future<void> login() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (usernameController.text.isEmpty || passwordController.text.isEmpty) {
+      _showMessage("Please enter username and password", true);
+      return;
+    }
 
     setState(() => isLoading = true);
 
@@ -63,151 +39,115 @@ class _LoginPageState extends State<LoginPage> {
           .maybeSingle();
 
       if (res == null) {
-        _showMessage("User not found", isError: true);
-        return;
-      }
+        _showMessage("User not found", true);
+      } else {
+        final hash = res['password'];
+        final isValid = BCrypt.checkpw(passwordController.text.trim(), hash);
 
-      debugPrint('Supabase login response: $res');
+        if (isValid) {
+          _showMessage("Login success", false);
 
-      final hash = res['password'];
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('LoggedIn', true);
+          await prefs.setString('username', res['username']);
+          await prefs.setString('role', res['role']);
 
-      final isValid = await checkPassword(passwordController.text.trim(), hash);
-
-      if (isValid) {
-        _showMessage("Login success", isError: false);
-
-        final role = res['role'];
-
-        await Future.delayed(const Duration(milliseconds: 300));
-
-        if(!mounted){
-          return;
-        }
-
-        // 根据角色跳转页面
-        if (role == 'User') {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (_) => WeatherScreen(
                 username: res['username'],
                 email: res['email'] ?? '',
-                role: role,
+                role: res['role'],
               ),
             ),
           );
         } else {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => WeatherScreen(
-                username: res['username'],
-                email: res['email'] ?? '',
-                role: role,
-              ),
-            ),
-          );
+          _showMessage("Incorrect password", true);
         }
-
-      } else {
-        _showMessage("Incorrect password", isError: true);
       }
     } catch (e) {
-      _showMessage("Error: $e", isError: true);
+      _showMessage("Error: $e", true);
     } finally {
-      if (mounted) setState(() => isLoading = false);
+      setState(() => isLoading = false);
     }
   }
 
-  Future<bool> checkPassword(String plain, String hash) async {
-    return _check({'plain': plain, 'hash': hash});
-  }
-
-  bool _check(Map<String, String> args) {
-    return BCrypt.checkpw(args['plain']!, args['hash']!);
-  }
-
-  void _showMessage(String message, {required bool isError}) {
-    debugPrint("SnackBar message: $message | isError: $isError");
+  void _showMessage(String msg, bool isError) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 2),
+        content: Text(msg),
         backgroundColor: isError ? Colors.red : Colors.green,
+        duration: const Duration(seconds: 10),
       ),
     );
+  }
+
+  Future<void> _checkLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final loggedIn = prefs.getBool('LoggedIn') ?? false;
+
+    if (loggedIn) {
+      final username = prefs.getString('username') ?? '';
+      final role = prefs.getString('role') ?? 'User';
+
+      final res = await Supabase.instance.client
+          .from('users')
+          .select()
+          .eq('username', username)
+          .maybeSingle();
+
+      final email = res?['email'] ?? '';
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WeatherScreen(
+            username: username,
+            email: email,
+            role: role,
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue, Colors.black],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  const Icon(Icons.person, size: 80, color: Colors.white),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: usernameController,
-                    textInputAction: TextInputAction.next,
-                    focusNode: usernameFocus,
-                    onFieldSubmitted: (_) => FocusScope.of(context).requestFocus(passwordFocus),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: "Username",
-                      labelStyle: TextStyle(color: Colors.white70),
-                    ),
-                    validator: (value) => (value == null || value.isEmpty) ? "Username is required" : null,
-                  ),
-                  const SizedBox(height: 15),
-                  TextFormField(
-                    controller: passwordController,
-                    focusNode: passwordFocus,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => login(),
-                    obscureText: true,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      labelText: "Password",
-                      labelStyle: TextStyle(color: Colors.white70),
-                    ),
-                    validator: (value) => (value == null || value.isEmpty) ? "Password is required" : null,
-                  ),
-                  const SizedBox(height: 25),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : login,
-                      child: isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("Login"),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage()));
-                    },
-                    child: const Text(
-                      "Don't have an account? Register",
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  )
-                ],
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.person, size: 80, color: Colors.blue),
+              const SizedBox(height: 20),
+              TextField(
+                controller: usernameController,
+                decoration: const InputDecoration(labelText: "Username"),
               ),
-            ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: "Password"),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: isLoading ? null : login,
+                child: isLoading
+                    ? const CircularProgressIndicator()
+                    : const Text("Login"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                      context, MaterialPageRoute(builder: (_) => const RegisterPage()));
+                },
+                child: const Text("Don't have an account? Register"),
+              ),
+            ],
           ),
         ),
       ),
