@@ -2,8 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
-import '../API/NetworkTile.dart';
-import '../API/ApiService.dart';
+import '../Services/network_tile.dart';
+import '../Services/api_service.dart';
 
 class MapScreen extends StatefulWidget {
   final double lat;
@@ -58,7 +58,6 @@ class _MapScreenState extends State<MapScreen> {
       userLat = locData.latitude;
       userLon = locData.longitude;
 
-      // Add user blue marker
       if (userLat != null && userLon != null) {
         userMarker = Marker(
           markerId: const MarkerId('user_location'),
@@ -109,7 +108,7 @@ class _MapScreenState extends State<MapScreen> {
         });
       }
     } catch (e) {
-      print("Risk fetch error: $e");
+      throw Exception("Risk fetch error: $e");
     }
   }
 
@@ -157,8 +156,8 @@ class _MapScreenState extends State<MapScreen> {
               zoom: 14,
             ),
             markers: {
-              if (userMarker != null) userMarker!,
               ...riskMarkers,
+              ...{userMarker}.whereType<Marker>(),
             },
             tileOverlays: _tileOverlays,
             onMapCreated: (controller) {
@@ -167,7 +166,6 @@ class _MapScreenState extends State<MapScreen> {
             },
           ),
 
-          // Layer buttons
           Positioned(
             top: 10,
             right: 10,
@@ -181,7 +179,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
 
-          // Dynamic legend
           Positioned(
             bottom: 20,
             left: 10,

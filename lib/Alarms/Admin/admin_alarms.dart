@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../Database/DBService.dart';
+import '../../Services/db_service.dart';
 
 class AdminAlarms extends StatefulWidget {
   final String username;
@@ -95,7 +95,6 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
-  // ================= ALARMS TAB =================
   Widget _buildAlarmsTable() {
     if (alarms.isEmpty) {
       return const Center(child: Text("No alarms"));
@@ -128,7 +127,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
 
           return DataRow(
             color: override.isNotEmpty
-                ? MaterialStateProperty.all(Colors.yellow.shade100)
+                ? WidgetStateProperty.all(Colors.yellow.shade100)
                 : null,
             cells: [
               DataCell(Text(a['city'] ?? '')),
@@ -163,15 +162,12 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
-  // ================= WEATHER TAB =================
   Widget _buildWeatherTable() {
-    // get all weather IDs that already have alarms
     final alarmWeatherIds = alarms
         .where((a) => a['weather_id'] != null)
         .map((a) => a['weather_id'])
         .toSet();
 
-    // filter weather list
     final filteredWeather = weather
         .where((w) => !alarmWeatherIds.contains(w['id']))
         .toList();
@@ -258,9 +254,8 @@ class _AdminAlarmsState extends State<AdminAlarms>
               mainAxisSize: MainAxisSize.min,
               children: [
 
-                // TYPE
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   items: const [
                     DropdownMenuItem(value: "Heatwave", child: Text("Heatwave")),
                     DropdownMenuItem(value: "Unhealthy Air", child: Text("Unhealthy Air")),
@@ -288,13 +283,13 @@ class _AdminAlarmsState extends State<AdminAlarms>
                   controller: valueCtrl,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: getFieldLabel(selectedType),
+                    labelText: _getFieldLabel(selectedType),
                   ),
                   onChanged: (val) {
                     double? v = double.tryParse(val);
                     if (v != null) {
                       setStateDialog(() {
-                        riskLevel = calculateRiskLevel(selectedType, v);
+                        riskLevel = _calculateRiskLevel(selectedType, v);
                       });
                     }
                   },
@@ -327,13 +322,13 @@ class _AdminAlarmsState extends State<AdminAlarms>
                     return;
                   }
 
-                  String field = getFieldKey(selectedType);
+                  String field = _getFieldKey(selectedType);
 
                   Map<String, dynamic> overrideData = {
                     field: value
                   };
 
-                  String risk = calculateRiskLevel(selectedType, value);
+                  String risk = _calculateRiskLevel(selectedType, value);
 
                   if (risk != "High") {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -374,8 +369,6 @@ class _AdminAlarmsState extends State<AdminAlarms>
                       "risk": risk,
                     });
                   }
-
-                  Navigator.pop(context);
                   fetchAll();
                 },
                 child: Text(isUpdate ? "Update" : "Create"),
@@ -387,8 +380,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
-  // ================= DELETE =================
-  Future<void> _deleteAlarm(id) async {
+  Future<void> _deleteAlarm(String id) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -397,16 +389,16 @@ class _AdminAlarmsState extends State<AdminAlarms>
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // cancel
+              Navigator.pop(context);
             },
             child: const Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context); // close dialog
+              Navigator.pop(context);
 
               await DbService.delete('alarms', 'id', id);
-              fetchAll(); // refresh list
+              fetchAll();
             },
             child: const Text("Delete"),
           ),
@@ -415,9 +407,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
-
-  //used by chongyi's city CRUD
-  String getFieldKey(String type) {
+  String _getFieldKey(String type) {
     switch (type) {
       case "Heatwave":
         return "temperature";
@@ -432,7 +422,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     }
   }
 
-  String getFieldLabel(String type) {
+  String _getFieldLabel(String type) {
     switch (type) {
       case "Heatwave":
         return "Temperature (°C)";
@@ -448,7 +438,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
   }
 }
 
-String calculateRiskLevel(String type, double value) {
+String _calculateRiskLevel(String type, double value) {
   switch (type) {
     case "Heatwave":
       if (value >= 35) return "High";

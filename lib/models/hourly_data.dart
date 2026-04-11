@@ -28,4 +28,9 @@ class HourlyData {
       uvIndex: (json['uvIndex'] is num) ? (json['uvIndex'] as num).toDouble() : double.tryParse(json['uvIndex'].toString()) ?? 0.0,
     );
   }
+
+  @override
+  String toString() {
+    return '$time - UV: ${uvIndex.toStringAsFixed(1)}';
+  }
 }

@@ -1,18 +1,39 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../models/city_data.dart';
 import '../models/weather_data.dart';
 import '../models/hourly_data.dart';
 
 class ApiService {
-  static const String _URL = 'https://weather-api-nf24.onrender.com/api';
+  static const String _url = 'https://weather-api-nf24.onrender.com/api';
+
+  Future<City?> searchCity(String cityName) async {
+    final res = await http.get(
+      Uri.parse('$_url/city?search=$cityName'),
+    );
+
+    final data = jsonDecode(res.body);
+
+    if (res.statusCode != 200 || data['city'] == null) {
+      return null;
+    }
+
+    return City.fromJson({
+      'city_name': data['city'],
+      'country': data['country'],
+      'lat': data['lat'],
+      'lon': data['lon'],
+      'temperature': data['temperature'],
+      'condition': data['condition'],
+      'timezone': data['timezone'],
+    });
+  }
 
   Future<WeatherData> fetchWeather(double lat, double lon) async {
-    final String url = '$_URL/weather/daily/$lat/$lon';
+    final String url = '$_url/weather/daily/$lat/$lon';
 
     try{
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
 
       if(response.statusCode == 200){
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -27,7 +48,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> fetchHourlyForecast(double lat, double lon) async {
-    final String url = '$_URL/weather/hourly/$lat/$lon';
+    final String url = '$_url/weather/hourly/$lat/$lon';
 
     try {
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
@@ -47,13 +68,10 @@ class ApiService {
   }
 
   Future<List<HourlyData>> fetchFiveDayForecast(double lat, double lon) async {
-    final String url = '$_URL/weather/forecast/$lat/$lon';
+    final String url = '$_url/weather/forecast/$lat/$lon';
 
     try {
-      final response = await http.get(Uri.parse(url))
-          .timeout(const Duration(seconds: 30));
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -68,7 +86,7 @@ class ApiService {
   }
 
   Future<dynamic> fetchNearestRisk() async {
-    final String url = '$_URL/nearest-risk';
+    final String url = '$_url/nearest-risk';
 
     try { final response = await http.get(Uri.parse(url)) .timeout(const Duration(seconds: 30));
 

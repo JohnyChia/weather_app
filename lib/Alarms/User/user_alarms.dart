@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../Database/DBService.dart';
 
 class UserAlarms extends StatefulWidget {
   final String username;
@@ -89,7 +88,7 @@ class _UserAlarmsState extends State<UserAlarms> {
 
           return DataRow(
             color: override.isNotEmpty
-                ? MaterialStateProperty.all(Colors.yellow.shade100)
+                ? WidgetStateProperty.all(Colors.yellow.shade100)
                 : null,
             cells: [
               DataCell(Text(a['city'] ?? '')),

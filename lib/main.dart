@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:weather_app/Screens/Login.dart';
-import 'Services/Notifications_services.dart';
+import 'package:weather_app/Screens/login.dart';
+import 'Services/notifications_services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: 'https://lbdwlvsnlcoubebsetbx.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZHdsdnNubGNvdWJlYnNldGJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzNjc4MDgsImV4cCI6MjA4Njk0MzgwOH0.yj0DQEMsbr6u3_ISidWt1aUscZHFpzvveuTHAwT5WjY',
+    anonKey: 'sb_publishable_JCfnyFRdX-_k7-wptP3uKQ_DZhICRF9',
   );
 
   await NotificationService().init();

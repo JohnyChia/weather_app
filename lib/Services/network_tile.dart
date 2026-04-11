@@ -33,7 +33,7 @@ class NetworkTileProvider implements TileProvider {
       }
 
     } catch (e) {
-      print("Tile error: $e");
+      throw Exception("Tile error: $e");
     }
 
     return Tile(256, 256, Uint8List(0));

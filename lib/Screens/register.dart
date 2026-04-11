@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bcrypt/bcrypt.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:weather_app/widgets/widgets.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -58,10 +57,8 @@ class _RegisterPageState extends State<RegisterPage> {
       final email = emailController.text.trim();
       final password = passwordController.text.trim();
 
-      final hash = BCrypt.checkpw(
-        passwordController.text.trim(),
-        password
-      );
+      final salt = BCrypt.gensalt();
+      final hash = BCrypt.hashpw(password, salt);
 
       await Supabase.instance.client.from('users').insert({
         'username': username,
@@ -73,6 +70,10 @@ class _RegisterPageState extends State<RegisterPage> {
       _showMessage("Register success", isError: false);
 
       await Future.delayed(const Duration(seconds: 1));
+
+      if(!mounted){
+        return;
+      }
 
       Navigator.pop(context);
     } catch (e) {

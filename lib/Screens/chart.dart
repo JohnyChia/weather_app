@@ -321,7 +321,6 @@ class _ChartScreenState extends State<ChartScreen> {
                 ),
               ),
 
-              // ✅ Y-axis must be here (same level as bottomTitles)
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
@@ -338,7 +337,6 @@ class _ChartScreenState extends State<ChartScreen> {
                 ),
               ),
 
-              // optional (hide right & top)
               rightTitles: const AxisTitles(
                 sideTitles: SideTitles(showTitles: false),
               ),

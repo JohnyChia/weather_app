@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:bcrypt/bcrypt.dart';
+import 'forgot_password.dart';
 import 'weather_screen.dart';
 import 'register.dart';
 
@@ -42,7 +43,8 @@ class _LoginPageState extends State<LoginPage> {
         _showMessage("User not found", true);
       } else {
         final hash = res['password'];
-        final isValid = BCrypt.checkpw(passwordController.text.trim(), hash);
+        final isValid =
+        BCrypt.checkpw(passwordController.text.trim(), hash);
 
         if (isValid) {
           _showMessage("Login success", false);
@@ -51,6 +53,11 @@ class _LoginPageState extends State<LoginPage> {
           await prefs.setBool('LoggedIn', true);
           await prefs.setString('username', res['username']);
           await prefs.setString('role', res['role']);
+          await prefs.setString('userId', res['id'].toString());
+
+          if(!mounted){
+            return;
+          }
 
           Navigator.pushReplacement(
             context,
@@ -59,6 +66,7 @@ class _LoginPageState extends State<LoginPage> {
                 username: res['username'],
                 email: res['email'] ?? '',
                 role: res['role'],
+                userId: res['id'].toString(),
               ),
             ),
           );
@@ -90,6 +98,7 @@ class _LoginPageState extends State<LoginPage> {
     if (loggedIn) {
       final username = prefs.getString('username') ?? '';
       final role = prefs.getString('role') ?? 'User';
+      final userId = prefs.getString('userId') ?? '';
 
       final res = await Supabase.instance.client
           .from('users')
@@ -98,6 +107,11 @@ class _LoginPageState extends State<LoginPage> {
           .maybeSingle();
 
       final email = res?['email'] ?? '';
+      final actualUserId = res?['id']?.toString() ?? userId;
+
+      if(!mounted){
+        return;
+      }
 
       Navigator.pushReplacement(
         context,
@@ -106,6 +120,7 @@ class _LoginPageState extends State<LoginPage> {
             username: username,
             email: email,
             role: role,
+            userId: actualUserId,
           ),
         ),
       );
@@ -139,6 +154,18 @@ class _LoginPageState extends State<LoginPage> {
                 child: isLoading
                     ? const CircularProgressIndicator()
                     : const Text("Login"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ForgotPasswordScreen(
+                      ),
+                    ),
+                  );
+                },
+                child: const Text("Forgot Password"),
               ),
               TextButton(
                 onPressed: () {

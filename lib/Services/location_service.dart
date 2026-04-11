@@ -22,8 +22,10 @@ class LocationService {
       }
     }
     return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 30),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 30),
+      ),
     );
   }
 
@@ -34,13 +36,20 @@ class LocationService {
         position.longitude,
       );
 
-      if(placemarks.isNotEmpty){
-        return placemarks.first.locality;
-      }else{
-        return null;
+      if (placemarks.isEmpty) return null;
+
+      final place = placemarks.first;
+
+      final area = place.subLocality;
+      final city = place.locality ?? place.administrativeArea;
+
+      if (area != null && area.isNotEmpty) {
+        return "$area, $city";
       }
+
+      return city;
     } catch (e) {
-      throw Exception('Error get the city name');
+      return null;
     }
   }
 }

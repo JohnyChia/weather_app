@@ -1,38 +1,43 @@
 class WeatherData {
-  final DateTime time;
+  final String city;
   final double temperature;
   final double bodyTemperature;
-  final double windSpeed;
   final int humidity;
+  final double windSpeed;
+  final int airPressure;
+  final double rainFall;
   final int aqi;
+  final double co;
+  final double no2;
   final double uvIndex;
   final String weatherMain;
-  final DateTime sunrise;
-  final DateTime sunset;
-  final DateTime moonrise;
-  final DateTime moonset;
+  final String sunrise;
+  final String sunset;
   final String moonPhase;
-  final DateTime noon;
-  final DateTime peakStart;
-  final DateTime peakEnd;
+  final String dt;
+  final String noon;
+  final String peakStart;
+  final String peakEnd;
   final double lat;
   final double lon;
 
-
   WeatherData({
-    required this.time,
+    required this.city,
     required this.temperature,
     required this.bodyTemperature,
-    required this.windSpeed,
     required this.humidity,
+    required this.windSpeed,
+    required this.airPressure,
+    required this.rainFall,
     required this.aqi,
+    required this.co,
+    required this.no2,
     required this.uvIndex,
     required this.weatherMain,
     required this.sunrise,
     required this.sunset,
-    required this.moonrise,
-    required this.moonset,
     required this.moonPhase,
+    required this.dt,
     required this.noon,
     required this.peakStart,
     required this.peakEnd,
@@ -41,26 +46,38 @@ class WeatherData {
   });
 
   factory WeatherData.fromJson(Map<String, dynamic> json) {
+    double parseDouble(dynamic value) {
+      if (value == null) return 0.0;
+      return (value as num).toDouble();
+    }
+
+    int parseInt(dynamic value) {
+      if (value == null) return 0;
+      return (value as num).toInt();
+    }
+
     return WeatherData(
-      time: DateTime.fromMillisecondsSinceEpoch((json['dt'] as int? ?? 0) * 1000),
-      temperature: (json['temperature'] as num?)?.toDouble() ?? 0.0,
-      bodyTemperature: (json['bodyTemperature'] as num?)?.toDouble() ?? 0.0,
-      windSpeed: (json['windSpeed'] as num?)?.toDouble() ?? 0.0,
-      humidity: (json['humidity'] as num?)?.round() ?? 0,
-      aqi: (json['aqi'] as num?)?.round() ?? 0,
-      uvIndex: (json['uvIndex'] as num?)?.toDouble() ?? 0.0,
+      city: json['city'] as String? ?? '',
+      temperature: parseDouble(json['temperature']),
+      bodyTemperature: parseDouble(json['bodyTemperature']),
+      humidity: parseInt(json['humidity']),
+      windSpeed: parseDouble(json['windSpeed']),
+      airPressure: parseInt(json['airPressure']),
+      rainFall: parseDouble(json['rainFall']),
+      aqi: parseInt(json['aqi']),
+      co: parseDouble(json['co']),
+      no2: parseDouble(json['no2']),
+      uvIndex: parseDouble(json['uvIndex']),
       weatherMain: json['weatherMain'] as String? ?? 'Clear',
-      sunrise: DateTime.fromMillisecondsSinceEpoch((json['sunrise'] ?? 0) * 1000),
-      sunset: DateTime.fromMillisecondsSinceEpoch((json['sunset'] ?? 0) * 1000),
-      moonrise: DateTime.fromMillisecondsSinceEpoch((json['moonrise'] ?? 0) * 1000),
-      moonset: DateTime.fromMillisecondsSinceEpoch((json['moonset'] ?? 0) * 1000),
+      sunrise: json['sunrise'] as String? ?? '',
+      sunset: json['sunset'] as String? ?? '',
       moonPhase: json['moonPhase'] as String? ?? '',
-      noon: DateTime.fromMillisecondsSinceEpoch((json['noon'] ?? 0) * 1000),
-      peakStart: DateTime.fromMillisecondsSinceEpoch((json['peakStart'] ?? 0) * 1000),
-      peakEnd: DateTime.fromMillisecondsSinceEpoch((json['peakEnd'] ?? 0) * 1000),
-      lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
-      lon: (json['lon'] as num?)?.toDouble() ?? 0.0,
+      dt: json['dt'] as String? ?? '',
+      noon: json['noon'] as String? ?? '',
+      peakStart: json['peakStart'] as String? ?? '',
+      peakEnd: json['peakEnd'] as String? ?? '',
+      lat: parseDouble(json['lat']),
+      lon: parseDouble(json['lon']),
     );
   }
-
 }

@@ -1,52 +1,39 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weather_animation/weather_animation.dart';
+import 'package:weather_app/Screens/user_profile.dart';
 import 'package:weather_app/Screens/weather_map.dart';
-import '../Alarms/Admin/admin_Alarms.dart';
-import '../Alarms/User/user_Alarms.dart';
-import '../Database/DBService.dart';
-import '../Screens/Astronomy.dart';
-import '../Screens/Chart.dart';
+import '../Alarms/Admin/admin_alarms.dart';
+import '../Alarms/User/user_alarms.dart';
+import '../City/city_management.dart';
+import '../Services/db_service.dart';
+import '../Screens/astronomy.dart';
+import '../Screens/chart.dart';
 import 'package:weather_app/models/hourly_data.dart';
+import '../Travel/travel_managment.dart';
 import '../models/weather_data.dart';
-import '../Location/LocationService.dart';
-import '../API/ApiService.dart';
-import '../Services/Notifications_services.dart';
-import 'Login.dart';
-
-
-String getWeatherIcon(String? weatherMain) {
-  final weather = weatherMain?.toLowerCase();
-
-  switch (weather) {
-    case 'rain':
-      return 'assets/images/rainy_2d.png';
-    case 'drizzle':
-      return 'assets/images/rainy_2d.png';
-    case 'thunderstorm':
-      return 'assets/images/thunder_2d.png';
-    case 'clouds':
-      return 'assets/images/sunny_2d.png';
-    case 'snow':
-      return 'assets/images/snow_2d.png';
-    default:
-      return 'assets/images/sunny_2d.png';
-  }
-}
+import '../Services/location_service.dart';
+import '../Services/api_service.dart';
+import '../Services/notifications_services.dart';
+import 'login.dart';
+import 'weather_history.dart';
 
 
 class WeatherScreen extends StatefulWidget {
   final String username;
   final String email;
   final String role;
+  final String userId;
 
   const WeatherScreen({
     super.key,
     required this.username,
     required this.email,
     required this.role,
+    required this.userId,
   });
 
   @override
@@ -63,25 +50,35 @@ class _WeatherScreenState extends State<WeatherScreen> {
   List<HourlyData>? _hourlyForecast;
   List<HourlyData>? _fiveDayForecast;
   String? _city;
-  String? user_id;
   Timer? _alarmTime;
   Set<String> triggeredAlarms = {};
   String _currentTime = '';
-
+  String? _accusername;
+  String? _accemail;
+  String? _accprofileImage;
+  String? _currentCondition;
 
   @override
   void initState() {
     super.initState();
+
+    _loaduserData();
+
     _startAlarmMonitoring();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchWeatherData();
     });
   }
 
+  @override
+  void dispose() {
+    _alarmTime?.cancel();
+    super.dispose();
+  }
+
   Future<void> _fetchWeatherData() async {
     setState(() {
       _isLoading = true;
-
     });
     debugPrint("Fetching weather...");
 
@@ -92,29 +89,35 @@ class _WeatherScreenState extends State<WeatherScreen> {
       final cityName = await _locationService.getCity(position);
       debugPrint("City: $cityName");
 
-      final fetchedWeatherData = await _apiService.fetchWeather(position.latitude, position.longitude);
+      final fetchedWeatherData = await _apiService.fetchWeather(
+          position.latitude, position.longitude);
       debugPrint("WeatherData: $fetchedWeatherData");
 
-      final fetchedHourly = await _apiService.fetchHourlyForecast(position.latitude, position.longitude);
+      final fetchedHourly = await _apiService.fetchHourlyForecast(
+          position.latitude, position.longitude);
       debugPrint("HourlyForecast length: ${fetchedHourly.length}");
 
-      final fetchedFiveDay = await _apiService.fetchFiveDayForecast(position.latitude, position.longitude);
+      final fetchedFiveDay = await _apiService.fetchFiveDayForecast(
+          position.latitude, position.longitude);
       debugPrint("FiveDayForecast length: ${fetchedFiveDay.length}");
 
       final currentTime = fetchedHourly['currentTime'] as String;
 
+      final currentCondition = (fetchedHourly['hourly'] as List<HourlyData>).first.condition;
+
       setState(() {
         _city = cityName;
         _weatherData = fetchedWeatherData;
-        _hourlyForecast =  fetchedHourly['hourly'] as List<HourlyData>;
+        _hourlyForecast = fetchedHourly['hourly'] as List<HourlyData>;
         _currentTime = currentTime;
         _fiveDayForecast = fetchedFiveDay;
+        _currentCondition = currentCondition;
         _isLoading = false;
       });
 
       NotificationService().checkRainAndNotify(_hourlyForecast!);
+      NotificationService().showUvNotify(_weatherData!.uvIndex);
 
-      debugPrint("Weather data loaded.");
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -124,29 +127,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
     }
   }
 
-  String _getBackgroundImage(String? weatherMain) {
-    final weather = weatherMain?.toLowerCase();
-
-    switch (weather) {
-      case 'Rain':
-        return 'assets/images/rainy.png';
-      case 'Drizzle':
-        return 'assets/images/rainy.png';
-      case 'Thunderstorm':
-        return 'assets/images/thunder.png';
-      case 'Clouds':
-        return 'assets/images/sunny.png';
-      case 'Snow':
-        return 'assets/images/snow.png';
-      default:
-        return 'assets/images/sunny.png';
-    }
-  }
-
   void _startAlarmMonitoring() {
     _checkAlarms();
-    _alarmTime = Timer.periodic(const Duration(seconds : 10),
-            (timer) { _checkAlarms(); });
+    _alarmTime = Timer.periodic(const Duration(seconds: 10), (timer) {
+      _checkAlarms();
+    });
   }
 
   List<Map<String, dynamic>> nearbyAlarms = [];
@@ -163,35 +148,37 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
         final double alarmLat = double.parse(alarm['lat'].toString());
         final double alarmLon = double.parse(alarm['lon'].toString());
-        final distance = _calculateDistance(position.latitude, position.longitude, alarmLat, alarmLon);
+        final distance = _calculateDistance(
+            position.latitude, position.longitude, alarmLat, alarmLon);
 
         if (distance < 50) {
-          nearbyAlarms.add(alarm); // 保存完整数据
+          nearbyAlarms.add(alarm);
           final alarmId = alarm['id'].toString();
           if (!triggeredAlarms.contains(alarmId)) {
-            NotificationService().showAlarmNotification(
-              id: alarm['id'].hashCode,
+            NotificationService().showAlertNotification(
+              id: 4,
               title: "Weather Alert (${alarm['city']})",
               body: "${alarm['type']} - ${alarm['risk']}",
             );
             triggeredAlarms.add(alarm['id'].toString());
           }
         }
-
       }
     } catch (e) {
-      print("Alarm check error: $e");
+      throw Exception("Alarm check error: $e");
     }
   }
 
-  double _calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; double dLat = _degToRad(lat2 - lat1);
+  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371;
+    double dLat = _degToRad(lat2 - lat1);
     double dLon = _degToRad(lon2 - lon1);
-    double a = sin(dLat / 2) * sin(dLat / 2) + cos(_degToRad(lat1)) * cos(_degToRad(lat2)) * sin(dLon / 2) * sin(dLon / 2);
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degToRad(lat1)) * cos(_degToRad(lat2)) * sin(dLon / 2) *
+            sin(dLon / 2);
     double c = 2 * atan2(sqrt(a), sqrt(1 - a));
 
     return R * c;
-
   }
 
   double _degToRad(double deg) {
@@ -230,15 +217,38 @@ class _WeatherScreenState extends State<WeatherScreen> {
               decoration: const BoxDecoration(
                 color: Colors.deepPurple,
               ),
-              accountName: Text(widget.username),
-              accountEmail: Text(widget.email),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Text(
-                  widget.username.isNotEmpty
-                      ? widget.username[0].toUpperCase()
-                      : "?",
-                  style: const TextStyle(fontSize: 24),
+              accountName: Text(_accusername ?? ''),
+              accountEmail: Text(_accemail ?? ''),
+              currentAccountPicture: GestureDetector(
+                onTap: () async {
+                  Navigator.pop(context);
+
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => UserProfile(
+                        userId: widget.userId,
+                      ),
+                    ),
+                  );
+
+                  if (result == true) {
+                    _reloadUser();
+                  }
+                },
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  backgroundImage: _accprofileImage != null
+                      ? FileImage(File(_accprofileImage!))
+                      : null,
+                  child: _accprofileImage == null
+                      ? Text(
+                    _accusername != null && _accusername!.isNotEmpty
+                        ? _accusername![0].toUpperCase()
+                        : "?",
+                    style: const TextStyle(fontSize: 24),
+                  )
+                      : null,
                 ),
               ),
             ),
@@ -248,6 +258,13 @@ class _WeatherScreenState extends State<WeatherScreen> {
               title: const Text('City', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        CityManagement(userId: widget.userId),
+                  ),
+                );
               },
             ),
 
@@ -261,10 +278,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ChartScreen(
-                        hourlyData: _hourlyForecast!,
-                        multiDays: _fiveDayForecast!,
-                      ),
+                      builder: (context) =>
+                          ChartScreen(
+                            hourlyData: _hourlyForecast!,
+                            multiDays: _fiveDayForecast!,
+                          ),
                     ),
                   );
                 }
@@ -273,15 +291,17 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
             ListTile(
               leading: const Icon(Icons.map, color: Colors.white),
-              title: const Text('Live Weather Map', style: TextStyle(color: Colors.white)),
+              title: const Text(
+                  'Live Weather Map', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => MapScreen(
-                      lat: _weatherData!.lat,
-                      lon: _weatherData!.lon,
-                    ),
+                    builder: (context) =>
+                        MapScreen(
+                          lat: _weatherData!.lat,
+                          lon: _weatherData!.lon,
+                        ),
                   ),
                 );
               },
@@ -289,23 +309,32 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
             ListTile(
               leading: const Icon(Icons.history, color: Colors.white),
-              title: const Text('Weather History', style: TextStyle(color: Colors.white)),
+              title: const Text(
+                  'Weather History', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
-              },
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.notifications, color: Colors.white),
-              title: const Text('Notifications', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
+                if (_city != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          WeatherHistory(
+                            userId: widget.userId,
+                          ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("City not available yet")),
+                  );
+                }
               },
             ),
 
             ListTile(
               leading: const Icon(Icons.alarm, color: Colors.white),
-              title: const Text('Severe Weather Center', style: TextStyle(color: Colors.white)),
+              title: const Text('Severe Weather Center',
+                  style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
 
@@ -313,21 +342,23 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => UserAlarms(
-                        username: widget.username,
-                        email: widget.email,
-                        triggeredAlarms : nearbyAlarms,
-                      ),
+                      builder: (_) =>
+                          UserAlarms(
+                            username: widget.username,
+                            email: widget.email,
+                            triggeredAlarms: nearbyAlarms,
+                          ),
                     ),
                   );
                 } else {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AdminAlarms(
-                        username: widget.username,
-                        email: widget.email,
-                      ),
+                      builder: (_) =>
+                          AdminAlarms(
+                            username: widget.username,
+                            email: widget.email,
+                          ),
                     ),
                   );
                 }
@@ -336,7 +367,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
             ListTile(
               leading: const Icon(Icons.sunny, color: Colors.white),
-              title: const Text('Astronomy', style: TextStyle(color: Colors.white)),
+              title: const Text(
+                  'Astronomy', style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
 
@@ -344,23 +376,39 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => AstronomyScreen(
-                        sunrise: _weatherData!.sunrise,
-                        sunset: _weatherData!.sunset,
-                        moonrise: _weatherData!.moonrise,
-                        moonset: _weatherData!.moonset,
-                        moonPhase: _weatherData!.moonPhase,
-                        uvIndex: _weatherData!.uvIndex,
-                        hourlyUV: _hourlyForecast,
-                      ),
+                      builder: (context) =>
+                          AstronomyScreen(
+                            sunrise: _weatherData!.sunrise,
+                            sunset: _weatherData!.sunset,
+                            moonPhase: _weatherData!.moonPhase,
+                            noon: _weatherData!.noon,
+                            uvIndex: _weatherData!.uvIndex,
+                            hourlyUV: _hourlyForecast,
+                          ),
                     ),
                   );
                 }
               },
             ),
+
+            ListTile(
+              leading: const Icon(Icons.airport_shuttle, color: Colors.white),
+              title: const Text(
+                  'Travel Plan', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) =>
+                      TravelManagement(userId: widget.userId)),
+                );
+              },
+            ),
+
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.white),
-              title: const Text('Logout', style: TextStyle(color: Colors.white)),
+              title: const Text(
+                  'Logout', style: TextStyle(color: Colors.white)),
               onTap: () async {
                 Navigator.pop(context);
                 await _logout();
@@ -373,23 +421,16 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
       body: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.deepPurple.shade900,
-                  Colors.deepPurple.shade600,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            height: double.infinity,
-            width: double.infinity,
+          Positioned.fill(
+            child: _isLoading || _weatherData == null
+                ? Container(color: Colors.black)
+                : _buildWeatherBackground(_currentCondition),
           ),
+
           Container(
-            color: Colors.black.withOpacity(0.35),
+            color: Colors.black.withValues(alpha: 0.1),
           ),
+
           SafeArea(
             child: _buildContent(),
           ),
@@ -406,13 +447,15 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(
+          child: CircularProgressIndicator(color: Colors.white));
     }
     if (_errorMessage != null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 18)),
+          child: Text(_errorMessage!, textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 18)),
         ),
       );
     }
@@ -421,7 +464,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
         child: _buildWeatherInfo(),
       );
     }
-    return const Center(child: Text('No weather data available', style: TextStyle(color: Colors.white)));
+    return const Center(child: Text(
+        'No weather data available', style: TextStyle(color: Colors.white)));
   }
 
   Widget _buildWeatherInfo() {
@@ -453,10 +497,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
           const SizedBox(height: 10),
 
           Image.asset(
-            _getBackgroundImage(_weatherData?.weatherMain),
-            width: 200,
-            height: 200,
-            fit: BoxFit.cover,
+            getWeatherIcon(_currentCondition),
+            fit: BoxFit.contain,
           ),
 
           Text(
@@ -500,9 +542,10 @@ class _WeatherScreenState extends State<WeatherScreen> {
           const SizedBox(height: 25),
 
           Card(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15)),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -510,16 +553,19 @@ class _WeatherScreenState extends State<WeatherScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildInfoColumn(Icons.thermostat, 'Feels Like', '$bodyTemp°'),
+                      _buildInfoColumn(
+                          Icons.thermostat, 'Feels Like', '$bodyTemp°'),
                       _buildInfoColumn(Icons.air, 'Wind', '$windSpeed m/s'),
-                      _buildInfoColumn(Icons.water_drop, 'Humidity', '$humidity%'),
+                      _buildInfoColumn(
+                          Icons.water_drop, 'Humidity', '$humidity%'),
                     ],
                   ),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildInfoColumn(Icons.lightbulb_outline, 'UV Index', '$uv'),
+                      _buildInfoColumn(
+                          Icons.lightbulb_outline, 'UV Index', '$uv'),
                       _buildInfoColumn(Icons.masks, 'AQI', '$aqi'),
                     ],
                   ),
@@ -537,7 +583,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
       width: 75,
       margin: const EdgeInsets.symmetric(horizontal: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -562,7 +608,8 @@ class _WeatherScreenState extends State<WeatherScreen> {
 
           Text(
             '${item.temp.round()}°',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -574,10 +621,82 @@ class _WeatherScreenState extends State<WeatherScreen> {
       children: [
         Icon(icon, color: Colors.white, size: 30),
         const SizedBox(height: 8),
-        Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(
+            title, style: const TextStyle(color: Colors.white70, fontSize: 14)),
         const SizedBox(height: 4),
-        Text(value.toString(), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(value.toString(), style: const TextStyle(
+            color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
       ],
     );
   }
+
+  Future<void> _loaduserData() async {
+    final data = await DbService.view('users', {
+      'id': widget.userId
+    });
+
+    if (data.isNotEmpty) {
+      final user = data.first;
+
+      setState(() {
+        _accusername = user['username'] ?? '';
+        _accemail = user['email'] ?? '';
+        _accprofileImage = user['profile_image'];
+      });
+    }
   }
+
+  Widget _buildWeatherBackground(String? condition) {
+    final c = condition?.toLowerCase() ?? '';
+
+    if (c.contains('rain')) return const RainWidget();
+    if (c.contains('drizzle')) return const RainWidget();
+    if (c.contains('thunder')) return const ThunderWidget();
+    if (c.contains('snow')) return const SnowWidget();
+    if (c.contains('clear')) return const SunWidget();
+    if (c.contains('cloud')) return const CloudWidget();
+
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF6FB1FF), Color(0xFFEAF6FF)],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _reloadUser() async {
+    final data = await DbService.view('users', {'id': widget.userId});
+
+    if (data.isNotEmpty) {
+      final user = data[0];
+
+      setState(() {
+        _accusername = user['username'];
+        _accemail = user['email'];
+        _accprofileImage = user['profile_image'];
+      });
+    }
+  }
+}
+
+
+String getWeatherIcon(String? condition) {
+  final weather = condition?.toLowerCase();
+
+  switch (weather) {
+    case 'rain':
+      return 'assets/images/rainy_2d.png';
+    case 'drizzle':
+      return 'assets/images/rainy_2d.png';
+    case 'thunderstorm':
+      return 'assets/images/thunder_2d.png';
+    case 'clouds':
+      return 'assets/images/sunny_2d.png';
+    case 'snow':
+      return 'assets/images/snow_2d.png';
+    default:
+      return 'assets/images/sunny_2d.png';
+  }
+}
+
