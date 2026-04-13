@@ -80,7 +80,10 @@ class _CityManagementState extends State<CityManagement> {
     setState(() => isLoading = true);
 
     try {
-      final data = await DbService.view('city', {'user_id': widget.userId});
+      final data = await DbService.view('city', {
+        'user_id': widget.userId,
+        'status': 'active'
+      });
 
       List<City> savedCities =
       data.map((json) => City.fromJson(json)).toList();
@@ -117,6 +120,7 @@ class _CityManagementState extends State<CityManagement> {
   }
 
   void _onSearchChanged(String query) {
+
     if (_debounce?.isActive ?? false) _debounce!.cancel();
 
     _debounce = Timer(const Duration(milliseconds: 500), () {
@@ -146,6 +150,8 @@ class _CityManagementState extends State<CityManagement> {
       isSearching = true;
       cityNotFound = false;
     });
+
+    _addToHistory(trimmed);
 
     final result = await _apiService.searchCity(trimmed);
 
@@ -186,6 +192,7 @@ class _CityManagementState extends State<CityManagement> {
         'condition': weather.weatherMain,
         'temperature': weather.temperature,
         'timezone': selected.timezone,
+        'city_time': _getCityTime(selected.timezone),
       };
 
       await DbService.create('city', cityData);
@@ -218,15 +225,13 @@ class _CityManagementState extends State<CityManagement> {
 
   Future<void> _deleteCity(int id) async {
     try {
-      final plans =
-      await DbService.view('travel_plan', {'city_id': id});
+      await DbService.update(
+        'city',
+        'id',
+        id,
+        {'status': 'inactive'},
+      );
 
-      if (plans.isNotEmpty) {
-        _showError('Delete related travel plans first');
-        return;
-      }
-
-      await DbService.delete('city', 'id', id);
       _fetchCities();
     } catch (e) {
       _showError('Delete error');
@@ -312,7 +317,11 @@ class _CityManagementState extends State<CityManagement> {
                     style: TextStyle(color: Colors.redAccent, fontSize: 14),
                   ),
                 ),
-              if (_searchHistory.isNotEmpty && _searchResults.isEmpty && !cityNotFound)
+              if (_searchHistory.isNotEmpty && _searchResults.isEmpty &&
+                  !cityNotFound &&
+                  !isSearching &&
+                  _searchController.text.trim().isEmpty
+                 )
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(

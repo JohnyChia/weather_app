@@ -24,6 +24,9 @@ class _AdminAlarmsState extends State<AdminAlarms>
   List weather = [];
   bool isLoading = true;
 
+  List users = [];
+  Map<String, String> userMap = {};
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +39,12 @@ class _AdminAlarmsState extends State<AdminAlarms>
 
     final alarmData = await DbService.viewAll('alarms');
     final weatherData = await DbService.viewAll('weather');
+    final userData = await DbService.viewAll('users');
+
+    Map<String, String> tempMap = {};
+    for (var u in userData) {
+      tempMap[u['id'].toString()] = u['username'].toString();
+    }
 
     if(!mounted){
       return;
@@ -44,6 +53,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     setState(() {
       alarms = alarmData;
       weather = weatherData;
+      userMap = tempMap;
       isLoading = false;
     });
   }
@@ -95,6 +105,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
+  // ================= ALARMS TAB =================
   Widget _buildAlarmsTable() {
     if (alarms.isEmpty) {
       return const Center(child: Text("No alarms"));
@@ -127,7 +138,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
 
           return DataRow(
             color: override.isNotEmpty
-                ? WidgetStateProperty.all(Colors.yellow.shade100)
+                ? MaterialStateProperty.all(Colors.yellow.shade100)
                 : null,
             cells: [
               DataCell(Text(a['city'] ?? '')),
@@ -163,14 +174,17 @@ class _AdminAlarmsState extends State<AdminAlarms>
   }
 
   Widget _buildWeatherTable() {
+    if (weather.isEmpty) {
+      return const Center(child: Text("No weather data"));
+    }
+
     final alarmWeatherIds = alarms
         .where((a) => a['weather_id'] != null)
         .map((a) => a['weather_id'])
         .toSet();
 
-    final filteredWeather = weather
-        .where((w) => !alarmWeatherIds.contains(w['id']))
-        .toList();
+    final filteredWeather =
+    weather.where((w) => !alarmWeatherIds.contains(w['id'])).toList();
 
     if (filteredWeather.isEmpty) {
       return const Center(child: Text("No weather data"));
@@ -179,6 +193,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
+        dividerThickness: 0, // ❌ remove lines
         headingTextStyle: const TextStyle(
           color: Colors.black,
           fontWeight: FontWeight.bold,
@@ -186,11 +201,12 @@ class _AdminAlarmsState extends State<AdminAlarms>
         dataTextStyle: const TextStyle(color: Colors.black),
         columns: const [
           DataColumn(label: Text("City")),
+          DataColumn(label: Text("Username")),
           DataColumn(label: Text("Temperature")),
-          DataColumn(label: Text("Rain Fall")),
+          DataColumn(label: Text("Rain")),
           DataColumn(label: Text("Humidity")),
           DataColumn(label: Text("AQI")),
-          DataColumn(label: Text("Wind Speed")),
+          DataColumn(label: Text("Wind")),
           DataColumn(label: Text("Risk")),
           DataColumn(label: Text("Actions")),
         ],
@@ -198,13 +214,13 @@ class _AdminAlarmsState extends State<AdminAlarms>
           return DataRow(
             cells: [
               DataCell(Text(w['city'] ?? '')),
+              DataCell(Text(userMap[w['user_id'].toString()] ?? "Unknown")),
               DataCell(Text("${w['temperature'] ?? ''}")),
               DataCell(Text("${w['rainFall'] ?? ''}")),
               DataCell(Text("${w['humidity'] ?? ''}")),
               DataCell(Text("${w['aqi'] ?? ''}")),
               DataCell(Text("${w['windSpeed'] ?? ''}")),
               DataCell(Text(w['risk'] ?? '')),
-
               DataCell(
                 IconButton(
                   icon: const Icon(Icons.add_alert),
@@ -254,8 +270,9 @@ class _AdminAlarmsState extends State<AdminAlarms>
               mainAxisSize: MainAxisSize.min,
               children: [
 
+                // TYPE
                 DropdownButtonFormField<String>(
-                  initialValue: selectedType,
+                  value: selectedType,
                   items: const [
                     DropdownMenuItem(value: "Heatwave", child: Text("Heatwave")),
                     DropdownMenuItem(value: "Unhealthy Air", child: Text("Unhealthy Air")),
@@ -283,13 +300,13 @@ class _AdminAlarmsState extends State<AdminAlarms>
                   controller: valueCtrl,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: _getFieldLabel(selectedType),
+                    labelText: getFieldLabel(selectedType),
                   ),
                   onChanged: (val) {
                     double? v = double.tryParse(val);
                     if (v != null) {
                       setStateDialog(() {
-                        riskLevel = _calculateRiskLevel(selectedType, v);
+                        riskLevel = calculateRiskLevel(selectedType, v);
                       });
                     }
                   },
@@ -322,13 +339,13 @@ class _AdminAlarmsState extends State<AdminAlarms>
                     return;
                   }
 
-                  String field = _getFieldKey(selectedType);
+                  String field = getFieldKey(selectedType);
 
                   Map<String, dynamic> overrideData = {
                     field: value
                   };
 
-                  String risk = _calculateRiskLevel(selectedType, value);
+                  String risk = calculateRiskLevel(selectedType, value);
 
                   if (risk != "High") {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -369,6 +386,8 @@ class _AdminAlarmsState extends State<AdminAlarms>
                       "risk": risk,
                     });
                   }
+
+                  Navigator.pop(context);
                   fetchAll();
                 },
                 child: Text(isUpdate ? "Update" : "Create"),
@@ -380,7 +399,8 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
-  Future<void> _deleteAlarm(String id) async {
+  // ================= DELETE =================
+  Future<void> _deleteAlarm(id) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -389,16 +409,16 @@ class _AdminAlarmsState extends State<AdminAlarms>
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(context); // cancel
             },
             child: const Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(context); // close dialog
 
               await DbService.delete('alarms', 'id', id);
-              fetchAll();
+              fetchAll(); // refresh list
             },
             child: const Text("Delete"),
           ),
@@ -407,7 +427,9 @@ class _AdminAlarmsState extends State<AdminAlarms>
     );
   }
 
-  String _getFieldKey(String type) {
+
+  //used by chongyi's city CRUD
+  String getFieldKey(String type) {
     switch (type) {
       case "Heatwave":
         return "temperature";
@@ -422,7 +444,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
     }
   }
 
-  String _getFieldLabel(String type) {
+  String getFieldLabel(String type) {
     switch (type) {
       case "Heatwave":
         return "Temperature (°C)";
@@ -438,7 +460,7 @@ class _AdminAlarmsState extends State<AdminAlarms>
   }
 }
 
-String _calculateRiskLevel(String type, double value) {
+String calculateRiskLevel(String type, double value) {
   switch (type) {
     case "Heatwave":
       if (value >= 35) return "High";

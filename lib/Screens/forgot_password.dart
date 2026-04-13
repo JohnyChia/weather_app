@@ -14,21 +14,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final passwordController = TextEditingController();
   final confirmController = TextEditingController();
 
-  final emailFocus = FocusNode();
-  final passwordFocus = FocusNode();
-  final confirmFocus = FocusNode();
-
   bool obscurePassword = true;
   bool obscureConfirm = true;
   bool isLoading = false;
 
   final supabase = Supabase.instance.client;
-
-  String generateOtp() {
-    return (1000 + (DateTime.now().millisecondsSinceEpoch % 9000))
-        .toString()
-        .substring(0, 4);
-  }
 
   Future<void> sendOTP() async {
     final email = emailController.text.trim();
@@ -40,14 +30,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
+    if (rawPassword != confirm) {
+      _show("Passwords do not match", true);
+      return;
+    }
+
     setState(() => isLoading = true);
 
     try {
       final res = await supabase.functions.invoke(
         'forgot-password',
-        body: {
-          'email': email,
-        },
+        body: {'email': email},
       );
 
       if (res.data != null && res.data['error'] != null) {
@@ -57,9 +50,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       _show("OTP sent to your email", false);
 
-      if(!mounted){
-        return;
-      }
+      if (!mounted) return;
 
       Navigator.push(
         context,
@@ -80,7 +71,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   void _show(String msg, bool err) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(
+          msg,
+          style: const TextStyle(color: Colors.white),
+        ),
         backgroundColor: err ? Colors.red : Colors.green,
       ),
     );
@@ -91,85 +85,130 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     emailController.dispose();
     passwordController.dispose();
     confirmController.dispose();
-    emailFocus.dispose();
-    passwordFocus.dispose();
-    confirmFocus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Forgot Password")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: emailController,
-              focusNode: emailFocus,
-              decoration: const InputDecoration(labelText: "Email"),
-              textInputAction: TextInputAction.next,
-              onSubmitted: (_) =>
-                  FocusScope.of(context).requestFocus(passwordFocus),
-            ),
+      backgroundColor: Colors.lightBlue.shade300,
 
-            const SizedBox(height: 10),
+      appBar: AppBar(
+        backgroundColor: Colors.lightBlue.shade300,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        title: const Text("Forgot Password"),
+      ),
 
-            TextField(
-              controller: passwordController,
-              focusNode: passwordFocus,
-              obscureText: obscurePassword,
-              decoration: InputDecoration(
-                labelText: "New Password",
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+
+            child: Column(
+              children: [
+                const Icon(Icons.lock_reset, size: 80, color: Colors.white),
+                const SizedBox(height: 30),
+
+                // EMAIL
+                TextField(
+                  controller: emailController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: "Email",
+                    labelStyle: TextStyle(color: Colors.white),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() => obscurePassword = !obscurePassword);
-                  },
                 ),
-              ),
-              textInputAction: TextInputAction.next,
-              onSubmitted: (_) =>
-                  FocusScope.of(context).requestFocus(confirmFocus),
-            ),
 
-            const SizedBox(height: 10),
+                const SizedBox(height: 20),
 
-            TextField(
-              controller: confirmController,
-              focusNode: confirmFocus,
-              obscureText: obscureConfirm,
-              decoration: InputDecoration(
-                labelText: "Confirm Password",
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscureConfirm
-                        ? Icons.visibility
-                        : Icons.visibility_off,
+                // NEW PASSWORD
+                TextField(
+                  controller: passwordController,
+                  obscureText: obscurePassword,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: "New Password",
+                    labelStyle: const TextStyle(color: Colors.white),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        setState(() => obscurePassword = !obscurePassword);
+                      },
+                    ),
                   ),
-                  onPressed: () {
-                    setState(() => obscureConfirm = !obscureConfirm);
-                  },
                 ),
-              ),
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => sendOTP(),
-            ),
 
-            const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-            ElevatedButton(
-              onPressed: isLoading ? null : sendOTP,
-              child: isLoading
-                  ? const CircularProgressIndicator()
-                  : const Text("Send OTP"),
+                // CONFIRM PASSWORD
+                TextField(
+                  controller: confirmController,
+                  obscureText: obscureConfirm,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: "Confirm Password",
+                    labelStyle: const TextStyle(color: Colors.white),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white70),
+                    ),
+                    focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureConfirm
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        setState(() => obscureConfirm = !obscureConfirm);
+                      },
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // BUTTON
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.lightBlue,
+                    ),
+                    onPressed: isLoading ? null : sendOTP,
+                    child: isLoading
+                        ? const CircularProgressIndicator(
+                      color: Colors.lightBlue,
+                    )
+                        : const Text("Send OTP"),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather_animation/weather_animation.dart';
 import 'package:weather_app/Screens/user_profile.dart';
@@ -101,15 +102,26 @@ class _WeatherScreenState extends State<WeatherScreen> {
           position.latitude, position.longitude);
       debugPrint("FiveDayForecast length: ${fetchedFiveDay.length}");
 
-      final currentTime = fetchedHourly['currentTime'] as String;
+      await http.post(
+          Uri.parse("https://weather-api-nf24.onrender.com/api/user/location"),
+          body: {
+            "user_id": widget.userId,
+            "lat": position.latitude.toString(),
+            "lon": position.longitude.toString(),
+          },
+      );
 
-      final currentCondition = (fetchedHourly['hourly'] as List<HourlyData>).first.condition;
+      final currentCondition = fetchedWeatherData.weatherMain;
+      final List hourlyList = fetchedHourly['hourly'];
 
       setState(() {
         _city = cityName;
         _weatherData = fetchedWeatherData;
-        _hourlyForecast = fetchedHourly['hourly'] as List<HourlyData>;
-        _currentTime = currentTime;
+        _hourlyForecast = hourlyList
+            .map((e) => HourlyData.fromJson(e))
+            .toList();
+
+        _currentTime = fetchedHourly['currentTime'];
         _fiveDayForecast = fetchedFiveDay;
         _currentCondition = currentCondition;
         _isLoading = false;
@@ -477,100 +489,176 @@ class _WeatherScreenState extends State<WeatherScreen> {
     final uv = _weatherData!.uvIndex.round();
     final aqi = _weatherData!.aqi;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
           vertical: 40.0,
-          horizontal: 20.0
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-              cityName,
-              style:
-              const TextStyle(
+          horizontal: 20.0,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            /// CITY
+            Center(
+              child: Text(
+                cityName,
+                style: const TextStyle(
                   fontSize: 32,
-                  fontWeight:
-                  FontWeight.bold,
-                  color: Colors.white
-              )),
-          const SizedBox(height: 10),
-
-          Image.asset(
-            getWeatherIcon(_currentCondition),
-            fit: BoxFit.contain,
-          ),
-
-          Text(
-              '$temp°',
-              style:
-              const TextStyle(
-                  fontSize: 100,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white
-              )),
-          const SizedBox(height: 25),
-
-          Text(
-            "Current Time: $_currentTime",
-            style: const TextStyle(
-              fontSize: 20, color: Colors.white,
+                  color: Colors.white,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 15),
 
-          const Text(
+            const SizedBox(height: 10),
+
+            /// WEATHER ICON
+            Center(
+              child: Image.asset(
+                getWeatherIcon(_currentCondition),
+                fit: BoxFit.contain,
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            /// TEMP
+            Center(
+              child: Text(
+                '$temp°',
+                style: const TextStyle(
+                  fontSize: 90,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Center(
+              child: Text(
+                "Current Time: $_currentTime",
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            /// HOURLY TITLE
+            const Text(
               'Hourly Forecast',
               style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white70
-              )),
-          const SizedBox(height: 15),
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white70,
+              ),
+            ),
 
-          SizedBox(
-            height: 120,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _hourlyForecast?.length ?? 0,
-              itemBuilder: (context, index) {
-                final item = _hourlyForecast![index];
-                return _buildHourlyItem(item);
-              },
+            const SizedBox(height: 10),
+
+            /// HOURLY LIST
+            SizedBox(
+              height: 120,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: (_hourlyForecast?.length ?? 0) + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    // NOW card
+                    return _buildNowHourlyItem();
+                  }
+
+                  final item = _hourlyForecast![index - 1];
+                  return _buildHourlyItem(item, index);
+                },
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            /// INFO CARD
+            Card(
+              color: Colors.white.withValues(alpha: 0.2),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildInfoColumn(Icons.thermostat, 'Feels Like', '$bodyTemp°'),
+                        _buildInfoColumn(Icons.air, 'Wind', '$windSpeed m/s'),
+                        _buildInfoColumn(Icons.water_drop, 'Humidity', '$humidity%'),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildInfoColumn(Icons.lightbulb_outline, 'UV Index', '$uv'),
+                        _buildInfoColumn(Icons.masks, 'AQI', '$aqi'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            /// SAFE SPACE (IMPORTANT)
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNowHourlyItem() {
+    final pop = (_hourlyForecast != null && _hourlyForecast!.isNotEmpty)
+        ? (_hourlyForecast![0].pop).toDouble()
+        : 0.0;
+
+    final condition = _currentCondition ?? "Clear";
+
+    return Container(
+      width: 75,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+
+          const Text(
+            "Now",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 25),
 
-          Card(
-            color: Colors.white.withValues(alpha: 0.2),
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15)),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildInfoColumn(
-                          Icons.thermostat, 'Feels Like', '$bodyTemp°'),
-                      _buildInfoColumn(Icons.air, 'Wind', '$windSpeed m/s'),
-                      _buildInfoColumn(
-                          Icons.water_drop, 'Humidity', '$humidity%'),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildInfoColumn(
-                          Icons.lightbulb_outline, 'UV Index', '$uv'),
-                      _buildInfoColumn(Icons.masks, 'AQI', '$aqi'),
-                    ],
-                  ),
-                ],
-              ),
+          Image.asset(
+            getWeatherIcon(condition),
+            width: 35,
+            height: 35,
+          ),
+
+          Text(
+            "${(pop * 100).round()}%",
+            style: const TextStyle(
+              color: Colors.lightBlueAccent,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],
@@ -578,38 +666,60 @@ class _WeatherScreenState extends State<WeatherScreen> {
     );
   }
 
-  Widget _buildHourlyItem(HourlyData item) {
+  Widget _buildHourlyItem(HourlyData item, int index) {
+    final pop = (item.pop).toDouble();
+
+    final isNow = index == 0;
+
     return Container(
-      width: 75,
+      width: 80,
       margin: const EdgeInsets.symmetric(horizontal: 5),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
+
+          // TIME
           Text(
-            item.weatherTime,
+            isNow ? "Now" : item.weatherTime,
             style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
 
+          // ICON
           Image.asset(
             getWeatherIcon(item.condition),
-            width: 50,
-            height: 50,
+            width: 35,
+            height: 35,
           ),
 
-          const SizedBox(height: 8),
-
+          // TEMP (optional if you want)
           Text(
             '${item.temp.round()}°',
             style: const TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+
+          // POP
+          Text(
+            isNow
+                ? "Now"
+                : '${(pop * 100).round()}%',
+            style: const TextStyle(
+              color: Colors.lightBlueAccent,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -699,4 +809,3 @@ String getWeatherIcon(String? condition) {
       return 'assets/images/sunny_2d.png';
   }
 }
-

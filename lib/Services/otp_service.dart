@@ -41,9 +41,7 @@ class _OTPScreenState extends State<OTPScreen> {
 
       _show("Password reset success", false);
 
-      if(!mounted){
-        return;
-      }
+      if (!mounted) return;
 
       Navigator.popUntil(context, (route) => route.isFirst);
     } catch (e) {
@@ -56,7 +54,7 @@ class _OTPScreenState extends State<OTPScreen> {
   void _show(String msg, bool err) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(msg, style: const TextStyle(color: Colors.white)),
         backgroundColor: err ? Colors.red : Colors.green,
       ),
     );
@@ -65,28 +63,72 @@ class _OTPScreenState extends State<OTPScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Verify OTP")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: otpController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Enter OTP (4 digit)",
+      // ✅ SAME BACKGROUND AS LOGIN
+      backgroundColor: Colors.lightBlue.shade300,
+
+      appBar: AppBar(
+        title: const Text("Verify OTP"),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+
+      body: Center(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+
+              child: Column(
+                children: [
+                  const Icon(Icons.lock, size: 90, color: Colors.white),
+
+                  const SizedBox(height: 30),
+
+                  // OTP FIELD
+                  TextField(
+                    controller: otpController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+
+                    decoration: const InputDecoration(
+                      labelText: "Enter OTP (4 digit)",
+                      labelStyle: TextStyle(color: Colors.white),
+
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white70),
+                      ),
+
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.lightBlue,
+                      ),
+                      onPressed: isLoading ? null : resetPassword,
+
+                      child: isLoading
+                          ? const CircularProgressIndicator(
+                        color: Colors.lightBlue,
+                      )
+                          : const Text("Reset Password"),
+                    ),
+                  ),
+                ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            ElevatedButton(
-              onPressed: isLoading ? null : resetPassword,
-              child: isLoading
-                  ? const CircularProgressIndicator()
-                  : const Text("Reset Password"),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -4,7 +4,6 @@ import 'package:geocoding/geocoding.dart';
 import '../Services/db_service.dart';
 import '../models/travelplan_data.dart';
 import '../Services/api_service.dart';
-import '../widgets/widgets.dart';
 
 class TravelManagement extends StatefulWidget {
   final String userId;
@@ -23,6 +22,34 @@ class _TravelManagementState extends State<TravelManagement> {
   void initState() {
     super.initState();
     _fetchPlans();
+  }
+
+  Widget inputField(
+      String label,
+      IconData icon,
+      TextEditingController controller, {
+        bool isPassword = false,
+      }) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: Icon(icon, color: Colors.white),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.1),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white54),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white),
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchPlans() async {
@@ -58,11 +85,11 @@ class _TravelManagementState extends State<TravelManagement> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                InputField.build('Activity (e.g. Picnic)', Icons.local_activity, activityController),
+                inputField('Activity (e.g. Picnic)', Icons.local_activity, activityController),
                 const SizedBox(height: 15),
 
 
-                InputField.build('Location (City Name)', Icons.location_on, locationController),
+                inputField('Location (City Name)', Icons.location_on, locationController),
 
                 const SizedBox(height: 15),
 
@@ -189,6 +216,7 @@ class _TravelManagementState extends State<TravelManagement> {
                   } else {
                     await DbService.update('travel_plan', 'id', plan.id, newPlan.toJson());
                   }
+                  Navigator.pop(context);
                   _fetchPlans();
                 } catch (e) {
                   _showError('Validation Error: $e');
@@ -277,3 +305,4 @@ class _TravelManagementState extends State<TravelManagement> {
     );
   }
 }
+

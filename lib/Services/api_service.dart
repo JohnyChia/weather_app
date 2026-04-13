@@ -54,11 +54,7 @@ class ApiService {
       final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        final List<dynamic> hourlyList = data['hourly'];
-        return {
-          'currentTime': data['currentTime'] ?? '',
-          'hourly': hourlyList.map((item) => HourlyData.fromJson(item)).toList(),
-        };
+        return data;
       } else {
         throw Exception('Failed to fetch hourly weather');
       }

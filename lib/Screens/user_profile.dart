@@ -52,11 +52,16 @@ class _UserProfileState extends State<UserProfile> {
   Future<void> _loadWeather() async {
     final data = await DbService.view('weather', {'user_id': widget.userId});
 
-    if (data.isNotEmpty) {
-      setState(() {
+    print(weather);
+
+    if (!mounted) return;
+
+    setState(() {
+      if (data.isNotEmpty) {
         weather = data.first;
-      });
-    }
+      }
+      _isUserLoaded = true;
+    });
   }
 
   Future<void> _pickImage() async {

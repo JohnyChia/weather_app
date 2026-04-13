@@ -16,7 +16,9 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
+
   bool isLoading = false;
+  bool obscurePassword = true;
 
   @override
   void initState() {
@@ -25,11 +27,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> login() async {
-    if (usernameController.text.isEmpty || passwordController.text.isEmpty) {
-      _showMessage("Please enter username and password", true);
-      return;
-    }
-
     setState(() => isLoading = true);
 
     try {
@@ -42,22 +39,17 @@ class _LoginPageState extends State<LoginPage> {
       if (res == null) {
         _showMessage("User not found", true);
       } else {
-        final hash = res['password'];
         final isValid =
-        BCrypt.checkpw(passwordController.text.trim(), hash);
+        BCrypt.checkpw(passwordController.text.trim(), res['password']);
 
         if (isValid) {
-          _showMessage("Login success", false);
-
           final prefs = await SharedPreferences.getInstance();
           await prefs.setBool('LoggedIn', true);
           await prefs.setString('username', res['username']);
           await prefs.setString('role', res['role']);
           await prefs.setString('userId', res['id'].toString());
 
-          if(!mounted){
-            return;
-          }
+          if (!mounted) return;
 
           Navigator.pushReplacement(
             context,
@@ -84,18 +76,18 @@ class _LoginPageState extends State<LoginPage> {
   void _showMessage(String msg, bool isError) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: Text(
+          msg,
+          style: const TextStyle(color: Colors.white),
+        ),
         backgroundColor: isError ? Colors.red : Colors.green,
-        duration: const Duration(seconds: 10),
       ),
     );
   }
 
   Future<void> _checkLogin() async {
     final prefs = await SharedPreferences.getInstance();
-    final loggedIn = prefs.getBool('LoggedIn') ?? false;
-
-    if (loggedIn) {
+    if (prefs.getBool('LoggedIn') == true) {
       final username = prefs.getString('username') ?? '';
       final role = prefs.getString('role') ?? 'User';
       final userId = prefs.getString('userId') ?? '';
@@ -106,21 +98,16 @@ class _LoginPageState extends State<LoginPage> {
           .eq('username', username)
           .maybeSingle();
 
-      final email = res?['email'] ?? '';
-      final actualUserId = res?['id']?.toString() ?? userId;
-
-      if(!mounted){
-        return;
-      }
+      if (!mounted) return;
 
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => WeatherScreen(
             username: username,
-            email: email,
+            email: res?['email'] ?? '',
             role: role,
-            userId: actualUserId,
+            userId: userId,
           ),
         ),
       );
@@ -130,51 +117,122 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.lightBlue.shade300,
+
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.person, size: 80, color: Colors.blue),
-              const SizedBox(height: 20),
-              TextField(
-                controller: usernameController,
-                decoration: const InputDecoration(labelText: "Username"),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: "Password"),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: isLoading ? null : login,
-                child: isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text("Login"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ForgotPasswordScreen(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+
+              child: Column(
+                children: [
+                  const Icon(Icons.person, size: 90, color: Colors.white),
+                  const SizedBox(height: 30),
+
+                  // USERNAME
+                  TextField(
+                    controller: usernameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: "Username",
+                      labelStyle: TextStyle(color: Colors.white),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white70),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
                       ),
                     ),
-                  );
-                },
-                child: const Text("Forgot Password"),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // PASSWORD
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscurePassword,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      labelStyle: const TextStyle(color: Colors.white),
+                      enabledBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white70),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            obscurePassword = !obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // LOGIN BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.lightBlue,
+                      ),
+                      onPressed: isLoading ? null : login,
+                      child: isLoading
+                          ? const CircularProgressIndicator(
+                        color: Colors.lightBlue,
+                      )
+                          : const Text("Login"),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ForgotPasswordScreen(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Forgot Password",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const RegisterPage(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "Don't have an account? Register",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                      context, MaterialPageRoute(builder: (_) => const RegisterPage()));
-                },
-                child: const Text("Don't have an account? Register"),
-              ),
-            ],
+            ),
           ),
         ),
       ),

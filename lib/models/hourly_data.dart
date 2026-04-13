@@ -6,6 +6,7 @@ class HourlyData {
   final int humidity;
   final String condition;
   final double uvIndex;
+  final double pop;
 
   HourlyData({
     required this.weatherTime,
@@ -15,6 +16,7 @@ class HourlyData {
     required this.humidity,
     required this.condition,
     required this.uvIndex,
+    required this.pop,
   });
 
   factory HourlyData.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class HourlyData {
       humidity: (json['humidity'] is int) ? json['humidity'] as int : int.tryParse(json['humidity'].toString()) ?? 0,
       condition: json['condition'] ?? 'Clear',
       uvIndex: (json['uvIndex'] is num) ? (json['uvIndex'] as num).toDouble() : double.tryParse(json['uvIndex'].toString()) ?? 0.0,
+      pop: (json['pop'] ?? 0).toDouble(),
     );
   }
 

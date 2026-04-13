@@ -5,78 +5,68 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
+import bcrypt from "https://esm.sh/bcryptjs";
 
 serve(async (req) => {
   try {
     const { email, otp, newPassword } = await req.json();
+
+    if (!email || !otp || !newPassword) {
+      return new Response(JSON.stringify({ error: "Missing fields" }), { status: 400 });
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // STEP 1: FIND USER IN PUBLIC TABLE
-    const { data: users, error } = await supabase
+    // 1. get user
+    const { data: user, error } = await supabase
       .from("users")
-      .select("*")
+      .select("otp, otp_create_time")
+      .eq("email", email.trim().toLowerCase())
+      .single();
+
+    if (error || !user) {
+      return new Response(JSON.stringify({ error: "User not found" }), { status: 400 });
+    }
+
+    // 2. check OTP
+    if (user.otp !== otp) {
+      return new Response(JSON.stringify({ error: "Invalid OTP" }), { status: 400 });
+    }
+
+    // 3. check expiry (5 min)
+    const created = new Date(user.otp_create_time).getTime();
+    const now = Date.now();
+
+    if ((now - created) > 5 * 60 * 1000) {
+      return new Response(JSON.stringify({ error: "OTP expired" }), { status: 400 });
+    }
+
+    // 4. hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // 5. update password + clear OTP
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({
+        password: hashedPassword,
+        otp: null,
+        otp_create_time: null,
+      })
       .eq("email", email.trim().toLowerCase());
-
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-    }
-
-    if (!users || users.length === 0) {
-      return new Response(JSON.stringify({ error: "user not found (public table)" }), { status: 400 });
-    }
-
-    const profile = users[0];
-
-    // STEP 2: OTP CHECK
-    if (profile.otp !== otp) {
-      return new Response(JSON.stringify({ error: "invalid otp" }), { status: 400 });
-    }
-
-    // STEP 3: GET AUTH USER BY EMAIL (IMPORTANT FIX)
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-
-    if (authError) {
-      return new Response(JSON.stringify({ error: authError.message }), { status: 500 });
-    }
-
-    const authUser = authUsers.users.find(
-      (u) => u.email === email.trim().toLowerCase()
-    );
-
-    if (!authUser) {
-      return new Response(JSON.stringify({ error: "auth user not found" }), { status: 400 });
-    }
-
-    // STEP 4: UPDATE PASSWORD (REAL FIX)
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      authUser.id,
-      { password: newPassword }
-    );
 
     if (updateError) {
       return new Response(JSON.stringify({ error: updateError.message }), { status: 500 });
     }
 
-    // STEP 5: CLEAR OTP
-    await supabase
-      .from("users")
-      .update({ otp: null, otp_create_time: null })
-      .eq("email", email);
-
     return new Response(JSON.stringify({ success: true }), {
       headers: { "Content-Type": "application/json" },
-      status: 200,
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 });
 
