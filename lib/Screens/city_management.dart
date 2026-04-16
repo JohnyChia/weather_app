@@ -218,23 +218,55 @@ class _CityManagementState extends State<CityManagement> {
       );
     } catch (e) {
       _showError('Error adding city');
+      _showError('Error adding city');
     } finally {
       setState(() => isLoading = false);
     }
   }
 
   Future<void> _deleteCity(int id) async {
-    try {
-      await DbService.update(
-        'city',
-        'id',
-        id,
-        {'status': 'inactive'},
-      );
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Remove City', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to remove this city from your list?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    ) ?? false;
 
-      _fetchCities();
-    } catch (e) {
-      _showError('Delete error');
+    if (confirm) {
+      try {
+        await DbService.update(
+          'city',
+          'id',
+          id,
+          {'status': 'inactive'},
+        );
+
+        _fetchCities();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('City removed')),
+          );
+        }
+      } catch (e) {
+        _showError('Delete error');
+      }
     }
   }
 

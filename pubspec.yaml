@@ -50,6 +50,7 @@ dependencies:
   shared_preferences: ^2.5.5
   image_picker: ^1.2.1
   bcrypt: ^1.2.0
+  flutter_dotenv: ^6.0.0
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +72,7 @@ flutter:
   assets:
     - assets/images/
     - assets/animations/
+    - .env
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

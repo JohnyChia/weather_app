@@ -39,15 +39,20 @@ class _OTPScreenState extends State<OTPScreen> {
         return;
       }
 
-      _show("Password reset success", false);
+      final data = res.data;
 
-      if (!mounted) return;
-
-      Navigator.popUntil(context, (route) => route.isFirst);
+      if (res.status == 200 && data is Map && data['success'] == true) {
+        _show("Password reset success", false);
+        if (!mounted) return;
+        Navigator.popUntil(context, (route) => route.isFirst);
+      } else {
+        String msg = (data is Map) ? (data['error'] ?? "Unknown error") : "Request failed";
+        _show(msg, true);
+      }
     } catch (e) {
       _show("Error: $e", true);
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
@@ -63,7 +68,6 @@ class _OTPScreenState extends State<OTPScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ SAME BACKGROUND AS LOGIN
       backgroundColor: Colors.lightBlue.shade300,
 
       appBar: AppBar(

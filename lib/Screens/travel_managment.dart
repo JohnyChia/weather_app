@@ -148,6 +148,7 @@ class _TravelManagementState extends State<TravelManagement> {
                   });
 
                   int? selectedCityId;
+                  String cityStatus = plan?.status ?? 'planned';
 
                   if (cityData.isEmpty) {
                     try {
@@ -206,10 +207,13 @@ class _TravelManagementState extends State<TravelManagement> {
                     userId: widget.userId,
                     cityId: selectedCityId,
                     activity: activityController.text,
-                    location: cityName,
+                    location: locationController.text.trim(),
                     planDatetime: finalDateTime,
-                    status: plan?.status ?? 'planned',
+                    status: cityStatus,
                   );
+
+                  final payload = newPlan.toJson();
+                  print("Supabase : $payload" );
 
                   if (plan == null) {
                     await DbService.create('travel_plan', newPlan.toJson());
@@ -231,11 +235,38 @@ class _TravelManagementState extends State<TravelManagement> {
   }
 
   Future<void> _deletePlan(int id) async {
-    try {
-      await DbService.delete('travel_plan', 'id', id);
-      _fetchPlans();
-    } catch (e) {
-      _showError('Error deleting: $e');
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Confirm Delete', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to delete this travel plan?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirm) {
+      try {
+        await DbService.delete('travel_plan', 'id', id);
+        _fetchPlans();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Plan deleted successfully'))
+        );
+      } catch (e) {
+        _showError('Error deleting: $e');
+      }
     }
   }
 

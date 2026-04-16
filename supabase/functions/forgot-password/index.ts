@@ -4,82 +4,73 @@
 // This enables autocomplete, go to definition, etc.
 
 // Setup type definitions for built-in Supabase Runtime APIs
+// @ts-nocheck
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
   try {
     const { email } = await req.json();
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const searchEmail = email.trim().toLowerCase();
 
-    if (!email) {
-      return new Response(JSON.stringify({ error: "Email required" }), { status: 400 });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // 1. check user exists
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("email, otp_create_time")
-      .eq("email", email.trim().toLowerCase())
-      .single();
-
-    if (error || !user) {
-      return new Response(JSON.stringify({ error: "User not found" }), { status: 400 });
-    }
-
-    // 2. rate limit (60s)
-    if (user.otp_create_time) {
-      const diff = Date.now() - new Date(user.otp_create_time).getTime();
-      if (diff < 60000) {
-        return new Response(JSON.stringify({ error: "Wait 60s before requesting again" }), { status: 429 });
-      }
-    }
-
-    // 3. generate OTP
+    // 1. 生成 OTP
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    console.log(`Step 1: Generated OTP ${otp} for ${searchEmail}`);
 
-    // 4. save OTP
-    const { error: updateError } = await supabase
+    // 2. 先更新数据库 (这是最重要的一步)
+    const { error: dbError } = await supabase
       .from("users")
       .update({
-        otp,
-        otp_create_time: new Date().toISOString(),
+        otp: otp,
+        otp_create_time: new Date().toISOString()
       })
-      .eq("email", email.trim().toLowerCase());
+      .eq("email", searchEmail);
 
-    if (updateError) {
-      return new Response(JSON.stringify({ error: "DB update failed" }), { status: 500 });
-    }
+    if (dbError) throw new Error("Database update failed: " + dbError.message);
+    console.log("Step 2: Database updated successfully");
 
-    // 5. send email
-    const res = await fetch("https://api.resend.com/emails", {
+    // 3. 发送邮件
+    console.log("Step 3: Sending email via Brevo...");
+    const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
-        "Content-Type": "application/json",
+        "accept": "application/json",
+        "api-key": Deno.env.get("BREVO_API_KEY")!,
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        from: "onboarding@resend.dev",
-        to: email,
-        subject: "Reset Password OTP",
-        html: `<h2>Your OTP: ${otp}</h2>`,
+        sender: { name: "TARUMT App", email: "johnychia731@gmail.com" },
+        to: [{ email: searchEmail }],
+        subject: "Your Reset OTP",
+        htmlContent: `<h2>OTP: ${otp}</h2>`,
       }),
     });
 
-    if (!res.ok) {
-      return new Response(JSON.stringify({ error: "Email failed" }), { status: 500 });
+    if (!brevoRes.ok) {
+       const errorText = await brevoRes.text();
+       // 即使邮件发送失败，数据库其实已经更新了，所以我们抛出错误提示用户
+       throw new Error("Email provider error: " + errorText);
     }
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
     });
 
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error("Critical Error:", err.message);
+    return new Response(JSON.stringify({ error: err.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });
 
