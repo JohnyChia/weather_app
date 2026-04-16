@@ -353,7 +353,7 @@ class _CityManagementState extends State<CityManagement> {
                   !cityNotFound &&
                   !isSearching &&
                   _searchController.text.trim().isEmpty
-                 )
+              )
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(

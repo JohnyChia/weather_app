@@ -103,12 +103,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
       debugPrint("FiveDayForecast length: ${fetchedFiveDay.length}");
 
       await http.post(
-          Uri.parse("https://weather-api-nf24.onrender.com/api/user/location"),
-          body: {
-            "user_id": widget.userId,
-            "lat": position.latitude.toString(),
-            "lon": position.longitude.toString(),
-          },
+        Uri.parse("https://weather-api-nf24.onrender.com/api/user/location"),
+        body: {
+          "user_id": widget.userId,
+          "lat": position.latitude.toString(),
+          "lon": position.longitude.toString(),
+        },
       );
 
       final currentCondition = fetchedWeatherData.weatherMain;

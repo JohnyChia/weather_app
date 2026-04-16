@@ -148,7 +148,6 @@ class _TravelManagementState extends State<TravelManagement> {
                   });
 
                   int? selectedCityId;
-                  String cityStatus = plan?.status ?? 'planned';
 
                   if (cityData.isEmpty) {
                     try {
@@ -209,7 +208,6 @@ class _TravelManagementState extends State<TravelManagement> {
                     activity: activityController.text,
                     location: locationController.text.trim(),
                     planDatetime: finalDateTime,
-                    status: cityStatus,
                   );
 
                   final payload = newPlan.toJson();
@@ -304,16 +302,10 @@ class _TravelManagementState extends State<TravelManagement> {
   }
 
   Widget _buildPlanCard(TravelPlan plan) {
-    bool isWarning = plan.status == 'warning';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: isWarning
-              ? [Colors.red.shade900, Colors.red.shade700]
-              : [Colors.blueGrey.shade900, Colors.blueGrey.shade800],
-        ),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(20),
@@ -336,4 +328,3 @@ class _TravelManagementState extends State<TravelManagement> {
     );
   }
 }
-

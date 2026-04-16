@@ -24,25 +24,25 @@ class _WeatherHistoryState extends State<WeatherHistory> {
     setState(() => isLoading = true);
 
     try {
-        final data = await DbService.view('city', {'user_id': widget.userId});
+      final data = await DbService.view('city', {'user_id': widget.userId});
 
-        cities = data.map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item)).toList();
+      cities = data.map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item)).toList();
 
-        if (!mounted) {
-          return;
-        }
-        setState(() => isLoading = false);
+      if (!mounted) {
+        return;
+      }
+      setState(() => isLoading = false);
 
     } catch (e) {
-        if (!mounted) {
-          return;
-        }
+      if (!mounted) {
+        return;
+      }
 
-        setState(() => isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load cities: $e')),
-        );
-     }
+      setState(() => isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load cities: $e')),
+      );
+    }
   }
 
   Widget _buildCityTile(Map<String, dynamic> city) {
