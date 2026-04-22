@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:weather_app/Utils/translator.dart';
 import 'package:weather_app/models/hourly_data.dart';
 import 'solar.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -36,7 +37,7 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Astronomy'),
+        title: const AutoText('Astronomy'),
         backgroundColor: isSunSelected ? Colors.white : const Color(0xFF0C1428),
         foregroundColor: isSunSelected ? Colors.black87 : Colors.white,
         elevation: 0,
@@ -66,7 +67,7 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: .center,
         children: [
           _buildSelectorOption(AstronomyView.sun, 'Sunset/Sunrise'),
           _buildSelectorOption(AstronomyView.moon, 'Moon Phase'),
@@ -94,15 +95,18 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             boxShadow: isSelected && isSunView
-                ? [const BoxShadow(color: Colors.black, blurRadius: 5, spreadRadius: 1)]
+                ? [
+              const BoxShadow(
+                  color: Colors.black, blurRadius: 5, spreadRadius: 1)
+            ]
                 : [],
           ),
           child: Center(
-            child: Text(
+            child: AutoText(
               title,
               style: TextStyle(
                 color: isSunView ? Colors.black87 : Colors.white,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isSelected ? .bold : .normal,
               ),
             ),
           ),
@@ -121,7 +125,6 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
   }
 
   Widget _buildSunView() {
-
     DateTime? parseTimeSafeManual(String timeStr) {
       try {
         String cleaned = timeStr.replaceAll(
@@ -205,7 +208,8 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
           gradientColors: [Colors.purple.shade100, Colors.pink.shade100],
         ),
         const SizedBox(height: 12),
-        _buildDaylightCard('DAYLIGHT DURATION', daylightDuration, Icons.hourglass_bottom),
+        _buildDaylightCard(
+            'DAYLIGHT DURATION', daylightDuration, Icons.hourglass_bottom),
         const SizedBox(height: 12),
         Container(
           padding: const EdgeInsets.all(16),
@@ -214,12 +218,12 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
             borderRadius: BorderRadius.circular(15),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: .start,
             children: [
-              const Text(
+              const AutoText(
                 'Peak Sun Range',
                 style: TextStyle(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: .bold,
                   fontSize: 16,
                   color: Colors.white,
                 ),
@@ -246,16 +250,34 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
                           reservedSize: 32,
                           getTitlesWidget: (value, meta) {
                             if ((value - 0.1).abs() < 0.01) {
-                              return Text(widget.sunrise, style: const TextStyle(color: Colors.white70, fontSize: 12));
+                              return AutoText(
+                                  widget.sunrise,
+                                  style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12
+                                  )
+                              );
                             }
                             if ((value - 0.5).abs() < 0.01) {
-                              return Text(widget.noon.isNotEmpty ? widget.noon : '--:--',
-                                  style: const TextStyle(color: Colors.white70, fontSize: 12));
+                              return AutoText(widget.noon.isNotEmpty
+                                  ? widget.noon
+                                  : '--:--',
+                                  style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12
+                                  )
+                              );
                             }
                             if ((value - 0.9).abs() < 0.01) {
-                              return Text(widget.sunset, style: const TextStyle(color: Colors.white70, fontSize: 12));
+                              return AutoText(
+                                  widget.sunset,
+                                  style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12
+                                  )
+                              );
                             }
-                            return const Text('');
+                            return const AutoText('');
                           },
                         ),
                       ),
@@ -289,10 +311,11 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => SolarScreen(
-                hourlyUV: widget.hourlyUV,
-                currentUV: widget.uvIndex,
-              )),
+              MaterialPageRoute(builder: (context) =>
+                  SolarScreen(
+                    hourlyUV: widget.hourlyUV,
+                    currentUV: widget.uvIndex,
+                  )),
             );
           },
 
@@ -303,14 +326,24 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
               borderRadius: BorderRadius.circular(15),
             ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: .start,
               children: [
-                Text(
+                AutoText(
                   'UV INDEX: ${widget.uvIndex.toStringAsFixed(1)} ($uvLevel)',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Text('Solar Recommendation: $solarRecommendation', style: const TextStyle(fontSize: 14)),
+                AutoText(
+                  'Solar Recommendation: $solarRecommendation',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
               ],
             ),
           ),
@@ -327,23 +360,36 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
-          const Text('Current Phase', style: TextStyle(color: Colors.white70)),
+          const AutoText(
+              'Current Phase',
+              style: TextStyle(color: Colors.white70)),
           const SizedBox(height: 4),
-          Text(
+          AutoText(
             widget.moonPhase.isNotEmpty ? widget.moonPhase : 'Waxing Crescent',
-            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: .bold
+            ),
           ),
           const Row(
             children: [
-              Icon(Icons.brightness_6_outlined, color: Colors.white70, size: 16),
+              Icon(
+                  Icons.brightness_6_outlined,
+                  color: Colors.white70,
+                  size: 16),
               SizedBox(width: 4),
             ],
           ),
           const Divider(color: Colors.white24, height: 30),
           Center(
-            child: Icon(Icons.nightlight_round, size: 80, color: Colors.yellow.shade100),
+            child: Icon(
+                Icons.nightlight_round,
+                size: 80,
+                color: Colors.yellow.shade100
+            ),
           ),
         ],
       ),
@@ -359,21 +405,28 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: LinearGradient(
+            colors: gradientColors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(15),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
           Row(
             children: [
               Icon(icon, size: 20, color: Colors.black54),
               const SizedBox(width: 8),
-              Text(title.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+              AutoText(
+                  title.toUpperCase(),
+                  style: const TextStyle(
+                      fontWeight: .bold, color: Colors.black54)),
             ],
           ),
-          Text(time.isNotEmpty ? time : '',
-              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w300, color: Colors.black87)),
+          AutoText(time.isNotEmpty ? time : '',
+              style: const TextStyle(
+                  fontSize: 36, fontWeight: .w300, color: Colors.black87)),
         ],
       ),
     );
@@ -391,12 +444,28 @@ class _AstronomyScreenState extends State<AstronomyScreen> {
         children: [
           Icon(icon, size: 20, color: Colors.black54),
           const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+
+          AutoText(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: Colors.black54,
+            ),
+          ),
+
           const Spacer(),
-          Text(value, style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+
+          AutoText(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
         ],
       ),
     );
   }
-
 }

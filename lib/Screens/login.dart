@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:bcrypt/bcrypt.dart';
 import 'forgot_password.dart';
 import 'weather_screen.dart';
 import 'register.dart';
@@ -14,11 +13,12 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final usernameController = TextEditingController();
+  final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
   bool isLoading = false;
   bool obscurePassword = true;
+  bool _loginLock = false;
 
   @override
   void initState() {
@@ -27,49 +27,44 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> login() async {
-    setState(() => isLoading = true);
+    if (_loginLock) return;
+
+    setState(() {
+      isLoading = true;
+      _loginLock = true;
+    });
 
     try {
-      final res = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('username', usernameController.text.trim())
-          .maybeSingle();
+      final res = await Supabase.instance.client.auth.signInWithPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
 
-      if (res == null) {
-        _showMessage("User not found", true);
-      } else {
-        final isValid =
-        BCrypt.checkpw(passwordController.text.trim(), res['password']);
+      final user = res.user;
 
-        if (isValid) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setBool('LoggedIn', true);
-          await prefs.setString('username', res['username']);
-          await prefs.setString('role', res['role']);
-          await prefs.setString('userId', res['id'].toString());
-
-          if (!mounted) return;
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => WeatherScreen(
-                username: res['username'],
-                email: res['email'] ?? '',
-                role: res['role'],
-                userId: res['id'].toString(),
-              ),
-            ),
-          );
-        } else {
-          _showMessage("Incorrect password", true);
-        }
+      if (user == null) {
+        _showMessage("Login failed", true);
+        return;
       }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('LoggedIn', true);
+      await prefs.setString('userId', user.id);
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => WeatherScreen(userId: user.id),
+        ),
+      );
+
     } catch (e) {
       _showMessage("Error: $e", true);
     } finally {
-      setState(() => isLoading = false);
+      setState(() {
+        isLoading = false;
+        _loginLock = false;
+      });
     }
   }
 
@@ -87,31 +82,28 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _checkLogin() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('LoggedIn') == true) {
-      final username = prefs.getString('username') ?? '';
-      final role = prefs.getString('role') ?? 'User';
-      final userId = prefs.getString('userId') ?? '';
 
-      final res = await Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('username', username)
-          .maybeSingle();
+    final loggedIn = prefs.getBool('LoggedIn') ?? false;
 
-      if (!mounted) return;
+    if (!loggedIn) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => WeatherScreen(
-            username: username,
-            email: res?['email'] ?? '',
-            role: role,
-            userId: userId,
-          ),
-        ),
-      );
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user == null) {
+      await prefs.clear();
+      return;
     }
+
+    if (ModalRoute.of(context)?.settings.name == '/reset-password') return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WeatherScreen(
+          userId: user.id,
+        ),
+      ),
+    );
   }
 
   @override
@@ -132,12 +124,11 @@ class _LoginPageState extends State<LoginPage> {
                   const Icon(Icons.person, size: 90, color: Colors.white),
                   const SizedBox(height: 30),
 
-                  // USERNAME
                   TextField(
-                    controller: usernameController,
+                    controller: emailController,
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
-                      labelText: "Username",
+                      labelText: "Email",
                       labelStyle: TextStyle(color: Colors.white),
                       enabledBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: Colors.white70),
@@ -150,7 +141,6 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 20),
 
-                  // PASSWORD
                   TextField(
                     controller: passwordController,
                     obscureText: obscurePassword,
@@ -167,8 +157,7 @@ class _LoginPageState extends State<LoginPage> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                              ? Icons.visibility_off : Icons.visibility,
                           color: Colors.white,
                         ),
                         onPressed: () {
@@ -182,7 +171,6 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 30),
 
-                  // LOGIN BUTTON
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -194,8 +182,7 @@ class _LoginPageState extends State<LoginPage> {
                       child: isLoading
                           ? const CircularProgressIndicator(
                         color: Colors.lightBlue,
-                      )
-                          : const Text("Login"),
+                      ) : const Text("Login"),
                     ),
                   ),
 

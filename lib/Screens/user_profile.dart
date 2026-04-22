@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../Services/db_service.dart';
+import '../Utils/translator.dart';
 
 enum ProfileState { view, edit, loading }
 
@@ -52,8 +54,6 @@ class _UserProfileState extends State<UserProfile> {
   Future<void> _loadWeather() async {
     final data = await DbService.view('weather', {'user_id': widget.userId});
 
-    print(weather);
-
     if (!mounted) return;
 
     setState(() {
@@ -65,9 +65,54 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   Future<void> _pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 70,
+    );
+
     if (picked != null) {
-      setState(() => _imageFile = File(picked.path));
+      setState(() {
+        _imageFile = File(picked.path);
+      });
+    }
+  }
+
+  Future<String?> uploadImage(File file) async {
+    try {
+      final fileName = '${widget.userId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      await Supabase.instance.client.storage
+          .from('avatars')
+          .upload(fileName, file);
+
+      return Supabase.instance.client.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+    } catch (e) {
+      debugPrint("Upload error: $e");
+      return profileImagePath;
     }
   }
 
@@ -75,16 +120,17 @@ class _UserProfileState extends State<UserProfile> {
     setState(() => _state = ProfileState.loading);
 
     try {
-      await DbService.update(
-        'users',
-        'id',
-        widget.userId,
-        {
-          'username': _usernameController.text,
-          'email': _emailController.text,
-          'profile_image': _imageFile?.path ?? profileImagePath,
-        },
-      );
+      String? imageUrl = profileImagePath;
+
+      if (_imageFile != null) {
+        imageUrl = await uploadImage(_imageFile!);
+      }
+
+      await DbService.update('users', 'id', widget.userId, {
+        'username': _usernameController.text,
+        'email': _emailController.text,
+        'profile_image': imageUrl,
+      });
 
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -94,9 +140,96 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   Future<void> _deleteAccount() async {
-    await DbService.delete('users', 'id', widget.userId);
-    if (!mounted) return;
-    Navigator.pop(context, true);
+    bool confirm = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const AutoText("Confirm Delete"),
+          content: const AutoText("Are you sure you want to delete your account? This action cannot be undone."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const AutoText("Cancel"),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const AutoText("Delete", style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm) {
+      try {
+        await DbService.delete('users', 'id', widget.userId);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: AutoText("Account deleted successfully")),
+        );
+        Navigator.pop(context, true);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: AutoText("Failed to delete account: $e")),
+        );
+      }
+    }
+  }
+
+  PieChartSectionData _section(dynamic val, Color color) {
+    final double actualValue = (val ?? 0).toDouble();
+
+    final double visualValue = actualValue < 15 ? 15 : actualValue;
+
+    return PieChartSectionData(
+      value: visualValue,
+      color: color,
+      showTitle: false,
+      radius: 22,
+    );
+  }
+
+  Widget _buildIndicator(Color color, String text, dynamic value) {
+    return Row(
+      crossAxisAlignment: .start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        Flexible(
+          child: Column(
+            crossAxisAlignment: .start,
+            children: [
+              AutoText(
+                text,
+                style: const TextStyle(
+                  fontWeight: .bold,
+                  fontSize: 12,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 2),
+              AutoText(
+                "${value ?? 0}",
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -108,7 +241,7 @@ class _UserProfileState extends State<UserProfile> {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text("User Profile", style: TextStyle(color: Colors.black)),
+        title: const AutoText("User Profile", style: TextStyle(color: Colors.black)),
       ),
 
       body: SingleChildScrollView(
@@ -131,12 +264,12 @@ class _UserProfileState extends State<UserProfile> {
                       radius: 45,
                       backgroundImage: _imageFile != null
                           ? FileImage(_imageFile!)
-                          : (profileImagePath != null
-                          ? FileImage(File(profileImagePath!))
-                          : null) as ImageProvider?,
+                          : (profileImagePath != null &&
+                          profileImagePath!.startsWith('http')
+                          ? NetworkImage(profileImagePath!)
+                          : null),
                       child: _imageFile == null && profileImagePath == null
-                          ? const Icon(Icons.person, color: Colors.black, size: 45)
-                          : null,
+                          ? const Icon(Icons.person, color: Colors.black, size: 45) : null,
                     ),
                   ),
 
@@ -187,10 +320,9 @@ class _UserProfileState extends State<UserProfile> {
                               });
                             }
                           },
-                          child: Text(
+                          child: AutoText(
                             _state == ProfileState.view
-                                ? "Update Profile"
-                                : "Save Changes",
+                                ? "Update Profile" : "Save Changes",
                           ),
                         ),
                       ),
@@ -204,7 +336,7 @@ class _UserProfileState extends State<UserProfile> {
                             foregroundColor: Colors.white,
                           ),
                           onPressed: _deleteAccount,
-                          child: const Text("Delete Account"),
+                          child: const AutoText("Delete Account"),
                         ),
                       ),
                     ],
@@ -220,14 +352,14 @@ class _UserProfileState extends State<UserProfile> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: .start,
                         children: [
 
                           Text(
                             weather!['city'] ?? '',
                             style: const TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: .bold,
                               color: Colors.black,
                             ),
                           ),
@@ -241,27 +373,27 @@ class _UserProfileState extends State<UserProfile> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: .start,
                               children: [
-                                Text(
+                                AutoText(
                                   "Temperature: ${weather!['temperature']}°C",
                                   style: const TextStyle(color: Colors.black),
                                 ),
                                 const SizedBox(height: 6),
 
-                                Text(
+                                AutoText(
                                   "Humidity: ${weather!['humidity']}%",
                                   style: const TextStyle(color: Colors.black),
                                 ),
                                 const SizedBox(height: 6),
 
-                                Text(
+                                AutoText(
                                   "Wind: ${weather!['windSpeed']}",
                                   style: const TextStyle(color: Colors.black),
                                 ),
                                 const SizedBox(height: 6),
 
-                                Text(
+                                AutoText(
                                   "Risk: ${weather!['risk']}",
                                   style: const TextStyle(color: Colors.black),
                                 ),
@@ -271,10 +403,10 @@ class _UserProfileState extends State<UserProfile> {
 
                           const SizedBox(height: 15),
 
-                          const Text(
+                          const AutoText(
                             "Air Quality Index",
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                              fontWeight: .bold,
                               color: Colors.black,
                             ),
                           ),
@@ -283,70 +415,37 @@ class _UserProfileState extends State<UserProfile> {
 
                           Row(
                             children: [
-
                               Expanded(
                                 flex: 2,
                                 child: SizedBox(
-                                  height: 160,
+                                  height: 140,
                                   child: PieChart(
                                     PieChartData(
-                                      sectionsSpace: 2,
-                                      centerSpaceRadius: 25,
+                                      sectionsSpace: 3,
+                                      centerSpaceRadius: 50,
                                       sections: [
-                                        PieChartSectionData(
-                                          value: (weather!['co'] ?? 0).toDouble(),
-                                          color: Colors.orange,
-                                          title: "${weather!['co'] ?? 0}%",
-                                          radius: 55,
-                                          titleStyle: const TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        PieChartSectionData(
-                                          value: (weather!['no2'] ?? 0).toDouble(),
-                                          color: Colors.red,
-                                          title: "${weather!['no2'] ?? 0}%",
-                                          radius: 55,
-                                          titleStyle: const TextStyle(
-                                            color: Colors.black,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                        _section(weather?['co'], Colors.orange),
+                                        _section(weather?['no2'], Colors.red),
                                       ],
                                     ),
                                   ),
                                 ),
                               ),
-
-                              const SizedBox(width: 10),
-
+                              const SizedBox(width: 20),
                               Expanded(
                                 flex: 1,
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text(
-                                      "Carbon Monoxide (CO)",
-                                      style: TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    SizedBox(height: 10),
-
-                                    Text(
-                                      "Nitrogen Dioxide (NO2)",
-                                      style: TextStyle(
-                                          color: Colors.black,
-                                          fontWeight: FontWeight.bold),
-                                    ),
+                                  mainAxisAlignment: .center,
+                                  crossAxisAlignment: .start,
+                                  children: [
+                                    _buildIndicator(Colors.orange, "Carbon Monoxide (CO)", weather?['co']),
+                                    const SizedBox(height: 12),
+                                    _buildIndicator(Colors.red, "Nitrogen Dioxide (NO2)", weather?['no2']),
                                   ],
                                 ),
-                              )
+                              ),
                             ],
-                          ),
+                          )
                         ],
                       ),
                     ),

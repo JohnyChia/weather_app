@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 import '../Services/db_service.dart';
+import '../Utils/translator.dart';
 import '../models/city_data.dart';
 import '../Services/api_service.dart';
 import 'dart:async';
-import 'package:timezone/data/latest.dart' as tzdata;
-import 'package:timezone/timezone.dart' as tz;
+import '../Utils/timezone.dart';
+
 
 class CityManagement extends StatefulWidget {
   final String userId;
@@ -35,7 +35,6 @@ class _CityManagementState extends State<CityManagement> {
   @override
   void initState() {
     super.initState();
-    tzdata.initializeTimeZones();
     _loadSearchHistory();
     _fetchCities();
   }
@@ -111,7 +110,6 @@ class _CityManagementState extends State<CityManagement> {
       });
 
     } catch (e) {
-      debugPrint("Fetch cities error: $e");
 
       if (!mounted) return;
 
@@ -192,7 +190,7 @@ class _CityManagementState extends State<CityManagement> {
         'condition': weather.weatherMain,
         'temperature': weather.temperature,
         'timezone': selected.timezone,
-        'city_time': _getCityTime(selected.timezone),
+        'city_time': TimezoneHelper.getCityTime(selected.timezone),
       };
 
       await DbService.create('city', cityData);
@@ -212,12 +210,11 @@ class _CityManagementState extends State<CityManagement> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('City added successfully!'),
+          content: AutoText('City added successfully!'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      _showError('Error adding city');
       _showError('Error adding city');
     } finally {
       setState(() => isLoading = false);
@@ -229,20 +226,22 @@ class _CityManagementState extends State<CityManagement> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: const Text('Remove City', style: TextStyle(color: Colors.white)),
-        content: const Text(
+        title: const AutoText(
+            'Remove City',
+            style: TextStyle(color: Colors.white)),
+        content: const AutoText(
           'Are you sure you want to remove this city from your list?',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const AutoText('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Remove'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const AutoText('Remove'),
           ),
         ],
       ),
@@ -261,7 +260,7 @@ class _CityManagementState extends State<CityManagement> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('City removed')),
+            const SnackBar(content: AutoText('City removed')),
           );
         }
       } catch (e) {
@@ -273,7 +272,7 @@ class _CityManagementState extends State<CityManagement> {
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
+        content: AutoText(msg),
         backgroundColor: Colors.red,
       ),
     );
@@ -285,20 +284,25 @@ class _CityManagementState extends State<CityManagement> {
       backgroundColor: Colors.black,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text(
+        title: const AutoText(
           'Manage Cities',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white,
+              fontWeight: .bold),
         ),
         backgroundColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.blueAccent),
+            icon: const Icon(
+                Icons.refresh,
+                color: Colors.blueAccent),
             onPressed: _fetchCities,
             tooltip: "Refresh Weather",
           ),
         ],
       ),
+
       body: RefreshIndicator(
         onRefresh: _fetchCities,
         color: Colors.blueAccent,
@@ -313,10 +317,11 @@ class _CityManagementState extends State<CityManagement> {
                   onChanged: _onSearchChanged,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Search City Name...',
+                    hintText: appLang.value == "en" ? "Search City Name..." : "搜索城市名称...",
                     hintStyle: const TextStyle(color: Colors.white54),
-                    prefixIcon:
-                    const Icon(Icons.search, color: Colors.blueAccent),
+                    prefixIcon: const Icon(
+                        Icons.search,
+                        color: Colors.blueAccent),
                     suffixIcon: isSearching
                         ? const Padding(
                       padding: EdgeInsets.all(12),
@@ -324,9 +329,9 @@ class _CityManagementState extends State<CityManagement> {
                         strokeWidth: 2,
                         color: Colors.blueAccent,
                       ),
-                    )
-                        : IconButton(
-                      icon: const Icon(Icons.send,
+                    ) : IconButton(
+                      icon: const Icon(
+                          Icons.send,
                           color: Colors.blueAccent),
                       onPressed: () =>
                           _searchCity(_searchController.text.trim()),
@@ -341,10 +346,11 @@ class _CityManagementState extends State<CityManagement> {
                   onSubmitted: (val) => _searchCity(val.trim()),
                 ),
               ),
+
               if (cityNotFound)
                 const Padding(
                   padding: EdgeInsets.all(12),
-                  child: Text(
+                  child: AutoText(
                     "City not found",
                     style: TextStyle(color: Colors.redAccent, fontSize: 14),
                   ),
@@ -357,9 +363,9 @@ class _CityManagementState extends State<CityManagement> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: .start,
                     children: [
-                      const Text(
+                      const AutoText(
                         "Recent Searches",
                         style: TextStyle(color: Colors.white70, fontSize: 12),
                       ),
@@ -369,10 +375,10 @@ class _CityManagementState extends State<CityManagement> {
                         children: _searchHistory.map((history) {
                           return ActionChip(
                             backgroundColor: Colors.white10,
-                            label: Text(
+                            label: AutoText(
                               history,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: Colors.black,
                                 fontSize: 12,
                               ),
                             ),
@@ -406,7 +412,7 @@ class _CityManagementState extends State<CityManagement> {
                           res.cityName,
                           style: const TextStyle(color: Colors.white),
                         ),
-                        subtitle: Text(
+                        subtitle: AutoText(
                           res.country,
                           style: const TextStyle(color: Colors.white70),
                         ),
@@ -435,7 +441,7 @@ class _CityManagementState extends State<CityManagement> {
                   ? const Center(
                 child: Padding(
                   padding: EdgeInsets.all(40),
-                  child: Text(
+                  child: AutoText(
                     'No cities saved yet.',
                     style: TextStyle(color: Colors.white54),
                   ),
@@ -467,7 +473,7 @@ class _CityManagementState extends State<CityManagement> {
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
           colors: [Colors.blueAccent.withValues(alpha: 0.7), Colors.blue.shade900],
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          begin: .topLeft, end: .bottomRight,
         ),
       ),
       child: Padding(
@@ -476,29 +482,29 @@ class _CityManagementState extends State<CityManagement> {
           children: [
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: .start,
+                mainAxisSize: .min,
                 children: [
                   Text(
                     city.cityName,
                     style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-                  Text(
-                    '${city.country}\n${_getCityTime(city.timezone)}',
+                  AutoText(
+                    '${city.country}\n${TimezoneHelper.getCityTime(city.timezone)}',
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ],
               ),
             ),
             Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: .end,
+              mainAxisSize: .min,
               children: [
-                Text(
+                AutoText(
                   '${city.temperature.toStringAsFixed(0)}°',
-                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: .bold),
                 ),
-                Text(
+                AutoText(
                   city.condition,
                   style: const TextStyle(color: Colors.white70),
                 ),
@@ -516,9 +522,3 @@ class _CityManagementState extends State<CityManagement> {
   }
 }
 
-String _getCityTime(String timezone) {
-  final location = tz.getLocation(timezone);
-  final now = tz.TZDateTime.now(location);
-
-  return DateFormat('hh:mm a').format(now);
-}

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Services/db_service.dart';
+import '../Utils/translator.dart';
 
 class WeatherHistory extends StatefulWidget {
   final String userId;
@@ -40,7 +41,7 @@ class _WeatherHistoryState extends State<WeatherHistory> {
 
       setState(() => isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load cities: $e')),
+        SnackBar(content: AutoText('Failed to load cities: $e')),
       );
     }
   }
@@ -49,30 +50,28 @@ class _WeatherHistoryState extends State<WeatherHistory> {
     final name = city['city_name'] ?? '';
     final condition = city['condition'] ?? '';
     final timezone = city['timezone'] ?? '';
-    final temp = city['temperature'] != null
-        ? (city['temperature'] as num).round()
-        : '';
+    final temp = city['temperature'] != null ? (city['temperature'] as num).round() : '';
 
     return ListTile(
       leading: const Icon(Icons.location_city, color: Colors.blueAccent, size: 50),
 
       title: Text(
         name,
-        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        style: const TextStyle(color: Colors.black, fontWeight: .bold),
       ),
 
       subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: .start,
         children: [
-          Text(
+          AutoText(
             'Temperature : $temp°',
             style: const TextStyle(color: Colors.black),
           ),
-          Text(
+          AutoText(
             'Condition : $condition',
             style: const TextStyle(color: Colors.black),
           ),
-          Text(
+          AutoText(
             'Timezone: $timezone',
             style: const TextStyle(color: Colors.black),
           ),
@@ -86,14 +85,14 @@ class _WeatherHistoryState extends State<WeatherHistory> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Weather History'),
+        title: const AutoText('Weather History'),
         backgroundColor: Colors.deepPurple,
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
-          : cities.isEmpty
-          ? const Center(child: Text('No cities found.', style: TextStyle(color: Colors.black)))
-          : RefreshIndicator(
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.blueAccent)) : cities.isEmpty
+          ? const Center(
+              child: AutoText('No cities found.', style: TextStyle(color: Colors.black))) : RefreshIndicator(
         onRefresh: _fetchCities,
         color: Colors.blueAccent,
         child: ListView.builder(

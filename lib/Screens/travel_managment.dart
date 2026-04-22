@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:geocoding/geocoding.dart';
 import '../Services/db_service.dart';
+import '../Utils/translator.dart';
 import '../models/travelplan_data.dart';
 import '../Services/api_service.dart';
+import '../Utils/timezone.dart';
 
 class TravelManagement extends StatefulWidget {
   final String userId;
@@ -39,7 +40,7 @@ class _TravelManagementState extends State<TravelManagement> {
         labelStyle: const TextStyle(color: Colors.white70),
         prefixIcon: Icon(icon, color: Colors.white),
         filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
+        fillColor: Colors.white.withValues(alpha: 0.1),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Colors.white54),
@@ -71,7 +72,12 @@ class _TravelManagementState extends State<TravelManagement> {
     final locationController = TextEditingController(text: plan?.location ?? '');
 
     DateTime selectedDate = plan?.planDatetime ?? DateTime.now();
-    TimeOfDay selectedTime = TimeOfDay.fromDateTime(plan?.planDatetime ?? DateTime.now());
+    TimeOfDay selectedTime =
+    TimeOfDay.fromDateTime(plan?.planDatetime ?? DateTime.now());
+
+    String tr(String en, String zh) {
+      return appLang.value == "en" ? en : zh;
+    }
 
     await showDialog(
       context: context,
@@ -79,26 +85,40 @@ class _TravelManagementState extends State<TravelManagement> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: Colors.grey[900],
-          title: Text(plan == null ? 'New Travel Plan' : 'Edit Travel Plan',
-              style: const TextStyle(color: Colors.white)),
+          title: AutoText(
+            plan == null ? 'New Travel Plan' : 'Edit Travel Plan',
+            style: const TextStyle(color: Colors.white),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                inputField('Activity (e.g. Picnic)', Icons.local_activity, activityController),
+                inputField(
+                  tr('Activity (e.g. Picnic)', '活动（例如：野餐）'),
+                  Icons.local_activity,
+                  activityController,
+                ),
+
                 const SizedBox(height: 15),
 
-
-                inputField('Location (City Name)', Icons.location_on, locationController),
-
+                inputField(
+                  tr('Location (City Name)', '地点（城市名称）'),
+                  Icons.location_on,
+                  locationController,
+                ),
                 const SizedBox(height: 15),
-
 
                 ListTile(
                   tileColor: Colors.white10,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  leading: const Icon(Icons.calendar_today, color: Colors.blueAccent),
-                  title: Text(DateFormat('yyyy-MM-dd').format(selectedDate), style: const TextStyle(color: Colors.white)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  leading: const Icon(Icons.calendar_today,
+                      color: Colors.blueAccent),
+                  title: AutoText(
+                    DateFormat('yyyy-MM-dd').format(selectedDate),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   onTap: () async {
                     final pickedDate = await showDatePicker(
                       context: context,
@@ -106,125 +126,157 @@ class _TravelManagementState extends State<TravelManagement> {
                       firstDate: DateTime.now(),
                       lastDate: DateTime(2030),
                     );
-                    if (pickedDate != null) setDialogState(() => selectedDate = pickedDate);
+                    if (pickedDate != null) {
+                      setDialogState(() => selectedDate = pickedDate);
+                    }
                   },
                 ),
 
                 const SizedBox(height: 10),
 
-
                 ListTile(
                   tileColor: Colors.white10,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  leading: const Icon(Icons.access_time, color: Colors.blueAccent),
-                  title: Text(selectedTime.format(context), style: const TextStyle(color: Colors.white)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  leading:
+                  const Icon(Icons.access_time, color: Colors.blueAccent),
+                  title: AutoText(
+                    selectedTime.format(context),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                   onTap: () async {
                     final pickedTime = await showTimePicker(
                       context: context,
                       initialTime: selectedTime,
                     );
-                    if (pickedTime != null) setDialogState(() => selectedTime = pickedTime);
+                    if (pickedTime != null) {
+                      setDialogState(() => selectedTime = pickedTime);
+                    }
                   },
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const AutoText('Cancel'),
+            ),
+
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurpleAccent),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurpleAccent,
+              ),
               onPressed: () async {
-                if (activityController.text.isEmpty || locationController.text.isEmpty) {
+                if (activityController.text.isEmpty ||
+                    locationController.text.isEmpty) {
                   _showError('Please enter activity and location');
                   return;
                 }
 
-
                 try {
-                  String cityName = locationController.text.trim();
-                  final cityData = await DbService.view('city', {
+                  final cityName = locationController.text.trim();
+
+                  final cityResult = await _apiService.searchCity(cityName);
+
+                  if (cityResult == null) {
+                    _showError("City not found");
+                    return;
+                  }
+
+                  final weather = await _apiService.fetchWeather(
+                    cityResult.lat,
+                    cityResult.lon,
+                  );
+
+                  final normalizedCity = cityResult.cityName.trim();
+                  final existingCity = await DbService.view('city', {
                     'user_id': widget.userId,
-                    'city_name': cityName
+                    'city_name': normalizedCity,
+                    'lat': cityResult.lat,
+                    'lon': cityResult.lon,
                   });
 
-                  int? selectedCityId;
+                  final payload = {
+                    'user_id': widget.userId,
+                    'city_name': normalizedCity,
+                    'country': cityResult.country,
+                    'condition': weather.weatherMain,
+                    'temperature': weather.temperature,
+                    'lat': cityResult.lat,
+                    'lon': cityResult.lon,
+                    'timezone': cityResult.timezone,
+                    'city_time': TimezoneHelper.getCityTime(cityResult.timezone),
+                    'status': 'active',
+                  };
 
-                  if (cityData.isEmpty) {
-                    try {
-                      List<Location> locations = await locationFromAddress(cityName);
-                      if (locations.isNotEmpty) {
-                        final loc = locations.first;
-                        List<Placemark> placemarks = await placemarkFromCoordinates(loc.latitude, loc.longitude);
-                        final p = placemarks.first;
+                  int cityId;
 
-                        final weather = await _apiService.fetchWeather(loc.latitude, loc.longitude);
+                  if (existingCity.isEmpty) {
+                    await DbService.create('city', payload);
 
-                        final resolvedCityName = p.locality ?? p.name ?? cityName;
+                    final inserted = await DbService.view('city', {
+                      'user_id': widget.userId,
+                      'city_name': normalizedCity,
+                      'lat': cityResult.lat,
+                      'lon': cityResult.lon,
+                    });
 
-                        final Map<String, dynamic> newCityData = {
-                          'user_id': widget.userId,
-                          'city_name': resolvedCityName,
-                          'country': p.country ?? 'Unknown',
-                          'condition': weather.weatherMain,
-                          'temperature': weather.temperature,
-                          'lat': loc.latitude,
-                          'lon': loc.longitude,
-                        };
-
-                        await DbService.create('city', newCityData);
-
-                        final addedCity = await DbService.view('city', {
-                          'user_id': widget.userId,
-                          'city_name': resolvedCityName
-                        });
-
-                        if (addedCity.isNotEmpty) {
-                          selectedCityId = addedCity.first['id'];
-                          cityName = resolvedCityName;
-                        } else {
-                          throw Exception("Could not retrieve added city ID");
-                        }
-                      } else {
-                        _showError('City not found. Please enter a valid city name.');
-                        return;
-                      }
-                    } catch (e) {
-                      _showError('Could not find or add city: $e');
-                      return;
+                    if (inserted.isEmpty) {
+                      throw Exception("City insert failed");
                     }
+
+                    cityId = inserted.first['id'];
                   } else {
-                    selectedCityId = cityData.first['id'];
+                    cityId = existingCity.first['id'];
+
+                    await DbService.update(
+                      'city',
+                      'id',
+                      cityId,
+                      payload,
+                    );
                   }
 
                   final finalDateTime = DateTime(
-                      selectedDate.year, selectedDate.month, selectedDate.day,
-                      selectedTime.hour, selectedTime.minute
+                    selectedDate.year,
+                    selectedDate.month,
+                    selectedDate.day,
+                    selectedTime.hour,
+                    selectedTime.minute,
                   );
 
                   final newPlan = TravelPlan(
                     id: plan?.id,
                     userId: widget.userId,
-                    cityId: selectedCityId,
+                    cityId: cityId,
                     activity: activityController.text,
                     location: locationController.text.trim(),
                     planDatetime: finalDateTime,
                   );
 
-                  final payload = newPlan.toJson();
-                  print("Supabase : $payload" );
-
                   if (plan == null) {
                     await DbService.create('travel_plan', newPlan.toJson());
                   } else {
-                    await DbService.update('travel_plan', 'id', plan.id, newPlan.toJson());
+                    await DbService.update(
+                      'travel_plan',
+                      'id',
+                      plan.id,
+                      newPlan.toJson(),
+                    );
                   }
+
                   Navigator.pop(context);
                   _fetchPlans();
                 } catch (e) {
-                  _showError('Validation Error: $e');
+                  _showError('Error: $e');
                 }
               },
-              child: const Text('Save Plan'),
+              child: const AutoText(
+                'Save Plan',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -237,18 +289,21 @@ class _TravelManagementState extends State<TravelManagement> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: const Text('Confirm Delete', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to delete this travel plan?',
+        title: const AutoText(
+            'Confirm Delete',
+            style: TextStyle(color: Colors.white)),
+        content: const AutoText(
+            'Are you sure you want to delete this travel plan?',
             style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const AutoText('Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-            child: const Text('Delete'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const AutoText('Delete'),
           ),
         ],
       ),
@@ -260,7 +315,7 @@ class _TravelManagementState extends State<TravelManagement> {
         _fetchPlans();
 
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Plan deleted successfully'))
+            const SnackBar(content: AutoText('Plan deleted successfully'))
         );
       } catch (e) {
         _showError('Error deleting: $e');
@@ -269,7 +324,7 @@ class _TravelManagementState extends State<TravelManagement> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: AutoText(msg), backgroundColor: Colors.red));
   }
 
   @override
@@ -277,11 +332,21 @@ class _TravelManagementState extends State<TravelManagement> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Travel Planner', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const AutoText(
+          'Travel Planner',
+          style: TextStyle(
+            fontWeight: .bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchPlans),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _fetchPlans,
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
@@ -292,7 +357,7 @@ class _TravelManagementState extends State<TravelManagement> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.deepPurpleAccent))
           : plans.isEmpty
-          ? const Center(child: Text('No plans yet. Tap + to start.', style: TextStyle(color: Colors.white54)))
+          ? const Center(child: AutoText('No plans yet. Tap + to start.', style: TextStyle(color: Colors.white54)))
           : ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: plans.length,
@@ -309,16 +374,23 @@ class _TravelManagementState extends State<TravelManagement> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.all(20),
-        title: Text(plan.activity, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+        title: AutoText(
+            plan.activity,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 20, fontWeight: .bold)),
         subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: .start,
           children: [
-            Text(plan.location, style: const TextStyle(color: Colors.white70)),
-            Text(DateFormat('MMM dd, yyyy • hh:mm a').format(plan.planDatetime), style: const TextStyle(color: Colors.white60)),
+            AutoText(
+                plan.location,
+                style: const TextStyle(color: Colors.white70)),
+            AutoText(DateFormat('MMM dd, yyyy • hh:mm a').format(plan.planDatetime),
+                style: const TextStyle(color: Colors.white60)),
+
             if (plan.suggestion != null)
               Padding(
                 padding: const EdgeInsets.only(top: 10),
-                child: Text("💡 ${plan.suggestion}", style: const TextStyle(color: Colors.yellowAccent)),
+                child: AutoText("${plan.suggestion}", style: const TextStyle(color: Colors.yellow)),
               ),
           ],
         ),

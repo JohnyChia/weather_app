@@ -14,8 +14,7 @@ class NetworkTileProvider implements TileProvider {
       return Tile(256, 256, Uint8List(0));
     }
 
-    final url =
-        'https://weather-api-nf24.onrender.com/api/tiles/$layer/$zoom/$x/$y.png?t=${DateTime.now().millisecondsSinceEpoch}';
+    final url = 'https://weather-api-nf24.onrender.com/api/tiles/$layer/$zoom/$x/$y.png?t=${DateTime.now().millisecondsSinceEpoch}';
 
     try {
       final response = await http.get(

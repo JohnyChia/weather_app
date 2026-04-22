@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:location/location.dart';
 import '../Services/network_tile.dart';
 import '../Services/api_service.dart';
+import '../Utils/translator.dart';
 
 class MapScreen extends StatefulWidget {
   final double lat;
@@ -86,8 +87,7 @@ class _MapScreenState extends State<MapScreen> {
           if (lat == null || lon == null) continue;
 
           final markerColor = risk == "High"
-              ? BitmapDescriptor.hueRed
-              : BitmapDescriptor.hueOrange;
+              ? BitmapDescriptor.hueRed : BitmapDescriptor.hueOrange;
 
           markers.add(
             Marker(
@@ -145,7 +145,7 @@ class _MapScreenState extends State<MapScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Live Weather Map'),
+        title: const AutoText('Live Weather Map'),
         backgroundColor: Colors.deepPurple,
       ),
       body: Stack(
@@ -202,10 +202,10 @@ class _MapScreenState extends State<MapScreen> {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: isActive ? Colors.blue : Colors.grey.shade700,
+          backgroundColor: isActive ? Colors.blue : Colors.grey,
         ),
         onPressed: () => _changeLayer(layer),
-        child: Text(label),
+        child: AutoText(label),
       ),
     );
   }
@@ -213,15 +213,15 @@ class _MapScreenState extends State<MapScreen> {
   Widget _buildLegend(String layer) {
     switch (layer) {
       case 'clouds_new':
-        return const Text('Cloud coverage legend', style: TextStyle(color: Colors.white));
+        return const AutoText('Cloud coverage legend', style: TextStyle(color: Colors.white));
       case 'precipitation_new':
-        return const Text('Rainfall legend', style: TextStyle(color: Colors.white));
+        return const AutoText('Rainfall legend', style: TextStyle(color: Colors.white));
       case 'wind_new':
-        return const Text('Wind speed legend', style: TextStyle(color: Colors.white));
+        return const AutoText('Wind speed legend', style: TextStyle(color: Colors.white));
       case 'temp_new':
-        return const Text('Temperature legend', style: TextStyle(color: Colors.white));
+        return const AutoText('Temperature legend', style: TextStyle(color: Colors.white));
       default:
-        return const Text('Legend', style: TextStyle(color: Colors.white));
+        return const AutoText('Legend', style: TextStyle(color: Colors.white));
     }
   }
 }

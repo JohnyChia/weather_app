@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../Utils/translator.dart';
 import '../models/hourly_data.dart';
 
 class SolarScreen extends StatelessWidget {
@@ -75,7 +76,7 @@ class SolarScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Solar Energy'),
+        title: const AutoText('Solar Energy'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
       ),
@@ -107,12 +108,12 @@ class SolarScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: [
-                  const Text(
+                  const AutoText(
                     'Solar Energy Score',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: .bold,
                       fontSize: 16,
                       color: Colors.white,
                     ),
@@ -121,7 +122,7 @@ class SolarScreen extends StatelessWidget {
 
                   Row(
                     children: [
-                      Text(
+                      AutoText(
                         '$displayScore%',
                         style: const TextStyle(fontSize: 45, color: Colors.orange),
                       ),
@@ -129,7 +130,7 @@ class SolarScreen extends StatelessWidget {
 
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: .start,
                           children: [
                             LinearProgressIndicator(
                               value: scorePercentage,
@@ -139,12 +140,12 @@ class SolarScreen extends StatelessWidget {
                               minHeight: 10,
                             ),
                             const SizedBox(height: 8),
-                            Text(
+                            AutoText(
                               'Current UV: ${currentUV.toStringAsFixed(1)}',
                               style: const TextStyle(color: Colors.white, fontSize: 14),
                             ),
                             const SizedBox(height: 8),
-                            Text(
+                            AutoText(
                               description,
                               style: const TextStyle(color: Colors.white, fontSize: 14),
                             ),
@@ -179,20 +180,20 @@ Widget _buildSolarInfoCard({
       borderRadius: BorderRadius.circular(15),
     ),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: .start,
       children: [
         Row(children: [
           Icon(icon, size: 20, color: Colors.black54),
           const SizedBox(width: 8),
-          Text(title.toUpperCase(),
+          AutoText(title.toUpperCase(),
               style: const TextStyle(
-                fontWeight: FontWeight.bold,
+                fontWeight: .bold,
                 color: Colors.black54,
               ))
         ]),
-        Text(time,
+        AutoText(time,
             style: const TextStyle(
-                fontSize: 36, fontWeight: FontWeight.w300, color: Colors.black87)),
+                fontSize: 36, fontWeight: .w300, color: Colors.black87)),
       ],
     ),
   );

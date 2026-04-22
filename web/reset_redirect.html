@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Reset Password</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 320px;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .msg {
+            font-size: 14px;
+            color: #555;
+        }
+
+        .loading {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="card">
+    <div class="title">Reset Password</div>
+    <div class="msg" id="msg">Processing reset link...</div>
+    <div class="loading">Please wait...</div>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const error = params.get("error");
+
+    const msg = document.getElementById("msg");
+
+    function redirect(url) {
+        setTimeout(() => {
+            window.location.href = url;
+        }, 1200);
+    }
+
+    if (error) {
+        msg.innerText = "Reset link invalid or expired";
+        redirect("io.supabase.weatherapp://reset-password?error=1");
+    }
+    else if (!code) {
+        msg.innerText = "Missing reset token";
+        redirect("io.supabase.weatherapp://reset-password?error=missing");
+    }
+    else {
+        msg.innerText = "Opening app...";
+
+        redirect("io.supabase.weatherapp://reset-password?code=" + code);
+    }
+</script>
+
+</body>
+</html>

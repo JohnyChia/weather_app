@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
 import 'dart:async';
+import '../Utils/translator.dart';
 import '../models/hourly_data.dart';
 
 class NotificationService {
@@ -30,39 +30,25 @@ class NotificationService {
           await _notificationsPlugin.cancel(id);
 
         } else if (action == 'IGNORE') {
-
           if (await Vibration.hasVibrator()) {
             Vibration.vibrate(duration: 1000);
           }
 
-          _loopingAlarmIds.add(id);
-          await _notificationsPlugin.cancel(id);
-
-          Future.delayed(const Duration(minutes: 1), () async {
-            if (_loopingAlarmIds.contains(id)) {
-              await showAlertNotification(
-                id: id,
-                title: "Weather Alarm",
-                body: "Weather alert! Click OK to stop notifications.",
-              );
-
-              if (await Vibration.hasVibrator()) {
-                Vibration.vibrate(duration: 1000);
-              }
-            }
-          });
-        } else {
-          Text("Notification tapped without action ID");
+          if (_loopingAlarmIds.add(id)) {
+            _startAlarmLoop(id);
+          }
         }
       },
     );
 
     if (Platform.isAndroid) {
-      _notificationsPlugin
-          .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
+      _notificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
     }
+  }
+
+  Future<String> _translate(String text) async {
+    return await TranslatorHelper.translate(text);
   }
 
   Future<void> showNotification({
@@ -70,6 +56,8 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
+    await _notificationsPlugin.cancel(id);
+
     const androidDetails = AndroidNotificationDetails(
       'default_channel',
       'Default',
@@ -77,8 +65,15 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
     );
+
     const details = NotificationDetails(android: androidDetails);
-    await _notificationsPlugin.show(id, title, body, details);
+
+    await _notificationsPlugin.show(
+      id,
+      await _translate(title),
+      await _translate(body),
+      details,
+    );
   }
 
   Future<void> showAlertNotification({
@@ -112,7 +107,31 @@ class NotificationService {
     );
 
     final details = NotificationDetails(android: androidDetails);
-    await _notificationsPlugin.show(id, title, body, details);
+    await _notificationsPlugin.show(
+      id,
+      await _translate(title),
+      await _translate(body),
+      details,
+    );
+  }
+
+  Future<void> _startAlarmLoop(int id) async {
+    while (_loopingAlarmIds.contains(id)) {
+
+      await Future.delayed(const Duration(minutes: 1));
+
+      if (!_loopingAlarmIds.contains(id)) break;
+
+      await showAlertNotification(
+        id: id,
+        title: "Weather Alarm",
+        body: "Weather alert!",
+      );
+
+      if (await Vibration.hasVibrator()) {
+        Vibration.vibrate(duration: 1000);
+      }
+    }
   }
 
   Future<void> checkRainAndNotify(List<HourlyData> hourlyList) async {
@@ -158,18 +177,14 @@ class NotificationService {
       enableVibration: true,
       fullScreenIntent: true,
       autoCancel: false,
-      actions: <AndroidNotificationAction>[
-        const AndroidNotificationAction('OK', 'OK', showsUserInterface: true, cancelNotification: true),
-        const AndroidNotificationAction('IGNORE', 'IGNORE', showsUserInterface: true, cancelNotification: true),
-      ],
     );
 
     final details = NotificationDetails(android: androidDetails);
 
     await _notificationsPlugin.show(
       3,
-      "Solar Notifications",
-      body,
+      await _translate("Solar Notifications"),
+      await _translate(body),
       details,
     );
   }

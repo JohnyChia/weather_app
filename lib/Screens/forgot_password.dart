@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../Services/otp_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -11,59 +10,47 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  final confirmController = TextEditingController();
-
-  bool obscurePassword = true;
-  bool obscureConfirm = true;
   bool isLoading = false;
+  bool _lock = false;
 
   final supabase = Supabase.instance.client;
 
-  Future<void> sendOTP() async {
+  Future<void> sendResetEmail() async {
     final email = emailController.text.trim();
-    final rawPassword = passwordController.text.trim();
-    final confirm = confirmController.text.trim();
 
-    if (email.isEmpty || rawPassword.isEmpty || confirm.isEmpty) {
-      _show("Field must not be empty", true);
+    if (_lock) {
+      _show("Please wait", true);
       return;
     }
 
-    if (rawPassword != confirm) {
-      _show("Passwords do not match", true);
+    if (email.isEmpty) {
+      _show("Email cannot be empty", true);
       return;
     }
 
+    _lock = true;
     setState(() => isLoading = true);
 
     try {
-      final res = await supabase.functions.invoke(
-        'forgot-password',
-        body: {'email': email},
+      await supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo:
+        'https://weather-app-rose-omega-82.vercel.app/reset_redirect.html',
       );
 
-      if (res.data != null && res.data['error'] != null) {
-        _show(res.data['error'], true);
-        return;
-      }
+      _show("Reset email sent", false);
 
-      _show("OTP sent to your email", false);
+      Future.delayed(const Duration(seconds: 30), () {
+        if (!mounted) return;
+        setState(() => _lock = false);
+      });
 
-      if (!mounted) return;
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OTPScreen(
-            email: email,
-            newPassword: rawPassword,
-          ),
-        ),
-      );
     } catch (e) {
       _show("Error: $e", true);
-    } finally {
+      _lock = false;
+    }
+
+    if (mounted) {
       setState(() => isLoading = false);
     }
   }
@@ -83,8 +70,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   void dispose() {
     emailController.dispose();
-    passwordController.dispose();
-    confirmController.dispose();
     super.dispose();
   }
 
@@ -112,7 +97,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const Icon(Icons.lock_reset, size: 80, color: Colors.white),
                 const SizedBox(height: 30),
 
-                // EMAIL
                 TextField(
                   controller: emailController,
                   style: const TextStyle(color: Colors.white),
@@ -130,67 +114,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 const SizedBox(height: 20),
 
-                // NEW PASSWORD
-                TextField(
-                  controller: passwordController,
-                  obscureText: obscurePassword,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: "New Password",
-                    labelStyle: const TextStyle(color: Colors.white),
-                    enabledBorder: const UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white70),
-                    ),
-                    focusedBorder: const UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        setState(() => obscurePassword = !obscurePassword);
-                      },
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // CONFIRM PASSWORD
-                TextField(
-                  controller: confirmController,
-                  obscureText: obscureConfirm,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: "Confirm Password",
-                    labelStyle: const TextStyle(color: Colors.white),
-                    enabledBorder: const UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white70),
-                    ),
-                    focusedBorder: const UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureConfirm
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        setState(() => obscureConfirm = !obscureConfirm);
-                      },
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-
-                // BUTTON
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -198,12 +121,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.lightBlue,
                     ),
-                    onPressed: isLoading ? null : sendOTP,
+                    onPressed: isLoading ? null : sendResetEmail,
                     child: isLoading
                         ? const CircularProgressIndicator(
                       color: Colors.lightBlue,
                     )
-                        : const Text("Send OTP"),
+                        : const Text("Submit"),
                   ),
                 ),
               ],

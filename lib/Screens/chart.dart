@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../Utils/translator.dart';
 import '../models/hourly_data.dart';
 import 'weather_screen.dart';
 
@@ -32,7 +33,7 @@ class _ChartScreenState extends State<ChartScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Chart'),
+        title: const AutoText('Chart'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 1,
@@ -47,7 +48,6 @@ class _ChartScreenState extends State<ChartScreen> {
     );
   }
 
-  // ================= SELECTOR =================
   Widget _buildSelector() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -79,7 +79,7 @@ class _ChartScreenState extends State<ChartScreen> {
             borderRadius: BorderRadius.circular(8),
           ),
           child: Center(
-            child: Text(
+            child: AutoText(
               title,
               style: TextStyle(
                 color: Colors.black,
@@ -92,7 +92,6 @@ class _ChartScreenState extends State<ChartScreen> {
     );
   }
 
-  // ================= LINE CHART =================
   Widget _buildChart() {
     if (_selectedView == ChartView.multidaysForecast) {
       return _buildMultiDays();
@@ -103,7 +102,7 @@ class _ChartScreenState extends State<ChartScreen> {
     }
 
     if (widget.hourlyData.isEmpty) {
-      return const Center(child: Text("No data", style: TextStyle(color: Colors.black)));
+      return const Center(child: AutoText("No data", style: TextStyle(color: Colors.black)));
     }
 
     List<String> xLabels = [];
@@ -121,13 +120,13 @@ class _ChartScreenState extends State<ChartScreen> {
     }
 
     if (xLabels.isEmpty) {
-      return const Center(child: Text("No data", style: TextStyle(color: Colors.black)));
+      return const Center(child: AutoText("No data", style: TextStyle(color: Colors.black)));
     }
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+        scrollDirection: .horizontal,
         child: SizedBox(
           width: xLabels.length * 100,
           height: 600,
@@ -165,7 +164,7 @@ class _ChartScreenState extends State<ChartScreen> {
 
                       return Padding(
                         padding: const EdgeInsets.only(top: 6),
-                        child: Text(
+                        child: AutoText(
                           xLabels[i],
                           style: const TextStyle(
                             color: Colors.black,
@@ -185,7 +184,7 @@ class _ChartScreenState extends State<ChartScreen> {
                     getTitlesWidget: (value, meta) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 6),
-                        child: Text(
+                        child: AutoText(
                           value.toInt().toString(),
                           style: const TextStyle(
                             color: Colors.black,
@@ -225,10 +224,9 @@ class _ChartScreenState extends State<ChartScreen> {
     );
   }
 
-  // ================= MULTI DAYS =================
   Widget _buildMultiDays() {
     if (widget.multiDays.isEmpty) {
-      return const Center(child: Text("No data"));
+      return const Center(child: AutoText("No data"));
     }
 
     return ListView.builder(
@@ -250,12 +248,20 @@ class _ChartScreenState extends State<ChartScreen> {
               Image.asset(icon, width: 50, height: 50),
               const SizedBox(width: 10),
               Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: .start,
                 children: [
-                  Text(d.weatherDate, style: const TextStyle(color: Colors.black)),
-                  Text("${d.temp.round()}°C", style: const TextStyle(color: Colors.black)),
-                  Text("Humidity: ${d.humidity}%", style: const TextStyle(color: Colors.black)),
-                  Text(d.condition, style: const TextStyle(color: Colors.black)),
+                  AutoText(
+                      d.weatherDate,
+                      style: const TextStyle(color: Colors.black)),
+                  AutoText(
+                      "${d.temp.round()}°C",
+                      style: const TextStyle(color: Colors.black)),
+                  AutoText(
+                      "Humidity: ${d.humidity}%",
+                      style: const TextStyle(color: Colors.black)),
+                  AutoText(
+                      d.condition,
+                      style: const TextStyle(color: Colors.black)),
                 ],
               )
             ],
@@ -265,13 +271,12 @@ class _ChartScreenState extends State<ChartScreen> {
     );
   }
 
-  // ================= UV CHART =================
   Widget _buildUVChart() {
     final today = widget.hourlyData.first.weatherDate;
     final data = widget.hourlyData.where((e) => e.weatherDate == today).toList();
 
     if (data.isEmpty) {
-      return const Center(child: Text("No UV data", style: TextStyle(color: Colors.black)));
+      return const Center(child: AutoText("No UV data", style: TextStyle(color: Colors.black)));
     }
 
     final maxUV = data.map((e) => e.uvIndex).reduce((a, b) => a > b ? a : b);
@@ -279,7 +284,7 @@ class _ChartScreenState extends State<ChartScreen> {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+        scrollDirection: .horizontal,
         child: SizedBox(
           width: data.length * 50,
           height: 300,
@@ -309,8 +314,10 @@ class _ChartScreenState extends State<ChartScreen> {
                     interval: 1,
                     getTitlesWidget: (value, meta) {
                       int i = value.toInt();
-                      if (i < 0 || i >= data.length) return const SizedBox();
-                      return Text(
+                      if (i < 0 || i >= data.length) {
+                        return const SizedBox();
+                      }
+                      return AutoText(
                         data[i].weatherTime,
                         style: const TextStyle(color: Colors.black, fontSize: 10),
                       );
@@ -324,7 +331,7 @@ class _ChartScreenState extends State<ChartScreen> {
                     reservedSize: 40,
                     interval: 1,
                     getTitlesWidget: (value, meta) {
-                      return Text(
+                      return AutoText(
                         value.toInt().toString(),
                         style: const TextStyle(color: Colors.black),
                       );

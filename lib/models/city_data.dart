@@ -33,7 +33,7 @@ class City {
       country: json['country'] ?? '',
       condition: json['condition'] ?? '',
       temperature: (json['temperature'] is num) ? (json['temperature'] as num).toDouble() : double.tryParse(json['temperature']?.toString() ?? '') ?? 0.0,
-      currentTime: json['currentTime']?.toString() ?? '',
+      currentTime: json['city_time'] ?? json['currentTime'] ?? '',
       lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
       lon: (json['lon'] as num?)?.toDouble() ?? 0.0,
       status: json['status'] ?? 'active',
@@ -54,6 +54,7 @@ class City {
       'lon': lon,
       'status' : status,
       'timezone' : timezone,
+      'city_time': currentTime,
     };
   }
 }

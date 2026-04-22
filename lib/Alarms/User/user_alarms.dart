@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../Utils/translator.dart';
 
 class UserAlarms extends StatefulWidget {
   final String username;
@@ -19,14 +22,41 @@ class UserAlarms extends StatefulWidget {
 class _UserAlarmsState extends State<UserAlarms> {
   List alarms = [];
   bool isLoading = true;
+  late final RealtimeChannel _realtime;
 
   @override
   void initState() {
     super.initState();
+    fetchAlarms();
+    listenAlarms();
+  }
 
-    setState(() {
-      isLoading = false;
-    });
+
+  @override
+  void dispose() {
+    Supabase.instance.client.removeChannel(_realtime);
+    super.dispose();
+  }
+
+  void listenAlarms() {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    _realtime = Supabase.instance.client
+        .channel('alarms-channel')
+        .onPostgresChanges(
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'alarms',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'user_id',
+        value: user!.id,
+      ),
+      callback: (payload) {
+        fetchAlarms();
+      },
+    )
+        .subscribe();
   }
 
   @override
@@ -44,7 +74,7 @@ class _UserAlarmsState extends State<UserAlarms> {
       ),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
+          title: const AutoText(
             "User Alarms",
             style: TextStyle(color: Colors.black),
           ),
@@ -57,31 +87,55 @@ class _UserAlarmsState extends State<UserAlarms> {
     );
   }
 
+  Future<void> fetchAlarms() async {
+    setState(() => isLoading = true);
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+
+      final res = await Supabase.instance.client
+          .from('alarms')
+          .select()
+          .eq('user_id', user!.id)
+          .order('created_at', ascending: false);
+
+      setState(() {
+        alarms = List<Map<String, dynamic>>.from(res);
+        isLoading = false;
+      });
+
+    } catch (e) {
+      print("ERROR: $e");
+
+      setState(() => isLoading = false);
+    }
+  }
+
   Widget _buildAlarmsTable() {
-    if (widget.triggeredAlarms.isEmpty) {
-      return const Center(child: Text("No alarms"));
+    if (alarms.isEmpty) {
+      return const Center(child: AutoText("No alarms"));
     }
 
     return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+      scrollDirection: .horizontal,
       child: DataTable(
         headingTextStyle: const TextStyle(
           color: Colors.black,
-          fontWeight: FontWeight.bold,
+          fontWeight: .bold,
         ),
         dataTextStyle: const TextStyle(color: Colors.black),
         columns: const [
-          DataColumn(label: Text("City")),
-          DataColumn(label: Text("Temperature")),
-          DataColumn(label: Text("Rain Fall")),
-          DataColumn(label: Text("Humidity")),
-          DataColumn(label: Text("AQI")),
-          DataColumn(label: Text("Wind Speed")),
-          DataColumn(label: Text("Type")),
-          DataColumn(label: Text("Description")),
-          DataColumn(label: Text("Risk")),
+          DataColumn(label: AutoText("City")),
+          DataColumn(label: AutoText("Temperature")),
+          DataColumn(label: AutoText("Rain Fall")),
+          DataColumn(label: AutoText("Humidity")),
+          DataColumn(label: AutoText("AQI")),
+          DataColumn(label: AutoText("Wind Speed")),
+          DataColumn(label: AutoText("Type")),
+          DataColumn(label: AutoText("Description")),
+          DataColumn(label: AutoText("Risk")),
         ],
-        rows: widget.triggeredAlarms.map((a) {
+        rows: alarms.map((a) {
           final original = Map<String, dynamic>.from(a['data'] ?? {});
           final override = Map<String, dynamic>.from(a['override_data'] ?? {});
           final data = {...original, ...override};
@@ -92,14 +146,14 @@ class _UserAlarmsState extends State<UserAlarms> {
                 : null,
             cells: [
               DataCell(Text(a['city'] ?? '')),
-              DataCell(Text("${data['temperature'] ?? ''}")),
-              DataCell(Text("${data['rainFall'] ?? ''}")),
-              DataCell(Text("${data['humidity'] ?? ''}")),
-              DataCell(Text("${data['aqi'] ?? ''}")),
-              DataCell(Text("${data['windSpeed'] ?? ''}")),
-              DataCell(Text(a['type'] ?? '')),
-              DataCell(Text(a['description'] ?? '')),
-              DataCell(Text(a['risk'] ?? '')),
+              DataCell(AutoText("${data['temperature'] ?? ''}")),
+              DataCell(AutoText("${data['rainFall'] ?? ''}")),
+              DataCell(AutoText("${data['humidity'] ?? ''}")),
+              DataCell(AutoText("${data['aqi'] ?? ''}")),
+              DataCell(AutoText("${data['windSpeed'] ?? ''}")),
+              DataCell(AutoText(a['type'] ?? '')),
+              DataCell(AutoText(a['description'] ?? '')),
+              DataCell(AutoText(a['risk'] ?? '')),
             ],
           );
         }).toList(),

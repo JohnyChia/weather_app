@@ -21,8 +21,8 @@ class ApiService {
     return City.fromJson({
       'city_name': data['city'],
       'country': data['country'],
-      'lat': data['lat'],
-      'lon': data['lon'],
+      'lat': data['coordinates']['lat'],
+      'lon': data['coordinates']['lon'],
       'temperature': data['temperature'],
       'condition': data['condition'],
       'timezone': data['timezone'],
@@ -33,7 +33,8 @@ class ApiService {
     final String url = '$_url/weather/daily/$lat/$lon';
 
     try{
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+      final response = await http.get(Uri.parse(url)).timeout(
+          const Duration(seconds: 30));
 
       if(response.statusCode == 200){
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -51,7 +52,9 @@ class ApiService {
     final String url = '$_url/weather/hourly/$lat/$lon';
 
     try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+      final response = await http.get(Uri.parse(url)).timeout(
+          const Duration(seconds: 30));
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         return data;
@@ -67,7 +70,8 @@ class ApiService {
     final String url = '$_url/weather/forecast/$lat/$lon';
 
     try {
-      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 30));
+      final response = await http.get(Uri.parse(url)).timeout(
+          const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -84,13 +88,14 @@ class ApiService {
   Future<dynamic> fetchNearestRisk() async {
     final String url = '$_url/nearest-risk';
 
-    try { final response = await http.get(Uri.parse(url)) .timeout(const Duration(seconds: 30));
+    try { final response = await http.get(Uri.parse(url)) .timeout(
+        const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return data;
       } else {
-        throw Exception( 'Failed to fetch nearest risk. Server responded with ${response.statusCode}');
+        throw Exception('Failed to fetch nearest risk. Server responded with ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('An error occurred: ${e.toString()}');
