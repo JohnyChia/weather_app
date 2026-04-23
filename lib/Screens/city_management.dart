@@ -149,8 +149,6 @@ class _CityManagementState extends State<CityManagement> {
       cityNotFound = false;
     });
 
-    _addToHistory(trimmed);
-
     final result = await _apiService.searchCity(trimmed);
 
     setState(() {
@@ -162,6 +160,8 @@ class _CityManagementState extends State<CityManagement> {
       } else {
         _searchResults = [result];
         cityNotFound = false;
+
+        _addToHistory(trimmed);
       }
     });
   }
@@ -176,6 +176,34 @@ class _CityManagementState extends State<CityManagement> {
     setState(() => isLoading = true);
 
     try {
+      final existing = await DbService.view('city', {
+        'user_id': widget.userId,
+        'city_name': selected.cityName,
+      });
+
+      if (existing.isNotEmpty) {
+        final city = existing.first;
+
+        if (city['status'] == 'inactive') {
+          await DbService.update(
+            'city',
+            'id',
+            city['id'],
+            {'status': 'active'},
+          );
+
+          await _fetchCities();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: AutoText('City restored!')),
+          );
+          return;
+        } else {
+          _showError('City already added');
+          return;
+        }
+      }
+
       final weather = await _apiService.fetchWeather(
         selected.lat,
         selected.lon,
@@ -191,22 +219,15 @@ class _CityManagementState extends State<CityManagement> {
         'temperature': weather.temperature,
         'timezone': selected.timezone,
         'city_time': TimezoneHelper.getCityTime(selected.timezone),
+        'status': 'active',
       };
 
       await DbService.create('city', cityData);
-
-      if(!mounted){
-        return;
-      }
 
       _searchController.clear();
       _searchResults.clear();
 
       await _fetchCities();
-
-      if(!mounted){
-        return;
-      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -214,6 +235,7 @@ class _CityManagementState extends State<CityManagement> {
           backgroundColor: Colors.green,
         ),
       );
+
     } catch (e) {
       _showError('Error adding city');
     } finally {

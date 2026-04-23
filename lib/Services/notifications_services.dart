@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:vibration/vibration.dart';
 import 'dart:async';
+import '../Screens/travel_managment.dart';
 import '../Utils/translator.dart';
 import '../models/hourly_data.dart';
+import '../models/travelplan_data.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -134,23 +136,18 @@ class NotificationService {
     }
   }
 
-  Future<void> checkRainAndNotify(List<HourlyData> hourlyList) async {
-    final rainList = hourlyList
-        .where((h) => h.condition.toLowerCase().contains('rain'))
-        .toList();
+  Future<void> checkTravelPlan(TravelPlan plan, String weatherMain) async {
+    final advice = getWeatherAdvice(weatherMain);
 
-    if (rainList.isNotEmpty) {
-      final rain = rainList.first;
+    final isBad = advice.toLowerCase().contains("avoid") ||
+        advice.toLowerCase().contains("not recommended") ||
+        advice.toLowerCase().contains("difficult");
+
+    if (isBad) {
       await showNotification(
-        id: 1,
-        title: 'Rain Alert',
-        body: 'Rain at ${rain.weatherTime}. Bring umbrella!',
-      );
-    } else {
-      await showNotification(
-        id: 2,
-        title: 'Weather Update',
-        body: 'No rain today. Enjoy!',
+        id: plan.id ?? 1000,
+        title: "Travel Warning",
+        body: "Bad weather at ${plan.location}. $advice",
       );
     }
   }

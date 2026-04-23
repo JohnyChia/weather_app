@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../Services/db_service.dart';
+import '../Services/notifications_services.dart';
 import '../Utils/translator.dart';
 import '../models/travelplan_data.dart';
 import '../Services/api_service.dart';
@@ -55,12 +56,19 @@ class _TravelManagementState extends State<TravelManagement> {
 
   Future<void> _fetchPlans() async {
     setState(() => isLoading = true);
+
     try {
       final data = await DbService.view('travel_plan', {'user_id': widget.userId});
+
+      final list = data.map((json) => TravelPlan.fromJson(json)).toList();
+
       setState(() {
-        plans = data.map((json) => TravelPlan.fromJson(json)).toList();
+        plans = list;
         isLoading = false;
       });
+
+      await _checkWeatherForPlans();
+
     } catch (e) {
       setState(() => isLoading = false);
       _showError('Error fetching plans: $e');
@@ -190,6 +198,9 @@ class _TravelManagementState extends State<TravelManagement> {
                     cityResult.lon,
                   );
 
+
+                  final suggestion = getWeatherAdvice(weather.weatherMain);
+
                   final normalizedCity = cityResult.cityName.trim();
                   final existingCity = await DbService.view('city', {
                     'user_id': widget.userId,
@@ -254,6 +265,7 @@ class _TravelManagementState extends State<TravelManagement> {
                     activity: activityController.text,
                     location: locationController.text.trim(),
                     planDatetime: finalDateTime,
+                    suggestion: suggestion,
                   );
 
                   if (plan == null) {
@@ -319,6 +331,39 @@ class _TravelManagementState extends State<TravelManagement> {
         );
       } catch (e) {
         _showError('Error deleting: $e');
+      }
+    }
+  }
+
+  Future<void> _checkWeatherForPlans() async {
+    for (final plan in plans) {
+      try {
+        final cityResult = await _apiService.searchCity(plan.location);
+        if (cityResult == null) continue;
+
+        final weather = await _apiService.fetchWeather(
+          cityResult.lat,
+          cityResult.lon,
+        );
+
+        final weatherMain = weather.weatherMain.toLowerCase();
+
+        final BadWeather =
+            weatherMain.contains('rain') ||
+                weatherMain.contains('drizzle') ||
+                weatherMain.contains('storm') ||
+                weatherMain.contains('thunder') ||
+                weatherMain.contains('snow');
+
+        if (BadWeather) {
+          await NotificationService().showAlertNotification(
+            id: plan.id ?? plan.location.hashCode,
+            title: "Weather Alert",
+            body: getWeatherAdvice(weather.weatherMain),
+          );
+        }
+      } catch (e) {
+        print("Weather check error: $e");
       }
     }
   }
@@ -399,4 +444,32 @@ class _TravelManagementState extends State<TravelManagement> {
       ),
     );
   }
+}
+
+String getWeatherAdvice(String condition) {
+  final conditions = condition.toLowerCase();
+
+  if (conditions.contains('thunder') || conditions.contains('storm')) {
+    return "thunder weather, avoid going out";
+  }
+
+  if (conditions.contains('rain') || conditions.contains('drizzle')) {
+    return "Raining, Not recommended to go";
+  }
+
+  if (conditions.contains('snow')) {
+    return "Snowy, Travel may be difficult";
+  }
+
+  if (conditions.contains('clear')) {
+    return "Perfect weather, Good to travel";
+  }
+
+  if (conditions.contains('cloud')) {
+    return "Cloudy, Normal conditions";
+  }
+
+  return "Check weather before going";
+
+
 }

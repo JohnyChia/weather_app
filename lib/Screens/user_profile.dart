@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../Services/db_service.dart';
 import '../Utils/translator.dart';
@@ -145,7 +146,9 @@ class _UserProfileState extends State<UserProfile> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const AutoText("Confirm Delete"),
-          content: const AutoText("Are you sure you want to delete your account? This action cannot be undone."),
+          content: const AutoText(
+              "Are you sure you want to delete your account? This action cannot be undone."
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -153,28 +156,42 @@ class _UserProfileState extends State<UserProfile> {
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const AutoText("Delete", style: TextStyle(color: Colors.red)),
+              child: const AutoText(
+                "Delete",
+                style: TextStyle(color: Colors.red),
+              ),
             ),
           ],
         );
       },
     );
 
-    if (confirm) {
-      try {
-        await DbService.delete('users', 'id', widget.userId);
+    if (confirm != true) return;
 
-        if (!mounted) return;
+    try {
+      await DbService.update('users', 'id', widget.userId, {
+        'status': 'inactive',
+      });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: AutoText("Account deleted successfully")),
-        );
-        Navigator.pop(context, true);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: AutoText("Failed to delete account: $e")),
-        );
-      }
+      await Supabase.instance.client.auth.signOut();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: AutoText("Account deleted successfully")),
+      );
+
+      Navigator.of(context).pushNamedAndRemoveUntil('/login',
+            (route) => false,
+      );
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: AutoText("Failed to delete account: $e")),
+      );
     }
   }
 

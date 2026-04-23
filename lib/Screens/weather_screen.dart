@@ -16,6 +16,7 @@ import '../Services/db_service.dart';
 import '../Screens/astronomy.dart';
 import '../Screens/chart.dart';
 import 'package:weather_app/models/hourly_data.dart';
+import 'manage_useracc.dart';
 import 'travel_managment.dart';
 import '../models/weather_data.dart';
 import '../Services/location_service.dart';
@@ -108,6 +109,12 @@ class _WeatherScreenState extends State<WeatherScreen> {
       );
 
       final currentCondition = fetchedWeatherData.weatherMain;
+
+      final advice = getWeatherAdvice(currentCondition);
+      final isBad = advice.toLowerCase().contains("avoid") ||
+                    advice.toLowerCase().contains("not recommended") ||
+                     advice.toLowerCase().contains("difficult");
+
       final List hourlyList = fetchedHourly['hourly'];
 
       setState(() {
@@ -123,7 +130,15 @@ class _WeatherScreenState extends State<WeatherScreen> {
       });
 
       if (!mounted) return;
-      NotificationService().checkRainAndNotify(_hourlyForecast!);
+
+      if (isBad) {
+        await NotificationService().showAlertNotification(
+          id: 99,
+          title: "Weather Warning",
+          body: "Current weather: $advice",
+        );
+      }
+
       NotificationService().showUvNotify(_weatherData!.uvIndex);
 
     } catch (e) {
@@ -461,6 +476,26 @@ class _WeatherScreenState extends State<WeatherScreen> {
                 );
               },
             ),
+
+            if ((_role ?? '').toLowerCase() == 'admin')
+              ListTile(
+                leading: const Icon(Icons.manage_accounts, color: Colors.white),
+                title: const AutoText(
+                  'Manage User Accounts',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ManageUserAccountScreen(
+                        adminId: widget.userId,
+                      ),
+                    ),
+                  );
+                },
+              ),
 
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.white),

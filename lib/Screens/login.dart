@@ -47,6 +47,18 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
+      final userData = await Supabase.instance.client
+          .from('users')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (userData == null || userData['status'] != 'active') {
+        await Supabase.instance.client.auth.signOut();
+        _showMessage("Account is inactive", true);
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('LoggedIn', true);
       await prefs.setString('userId', user.id);
@@ -90,6 +102,18 @@ class _LoginPageState extends State<LoginPage> {
     final user = Supabase.instance.client.auth.currentUser;
 
     if (user == null) {
+      await prefs.clear();
+      return;
+    }
+
+    final userData = await Supabase.instance.client
+        .from('users')
+        .select()
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (userData == null || userData['status'] != 'active') {
+      await Supabase.instance.client.auth.signOut();
       await prefs.clear();
       return;
     }
