@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:translator/translator.dart';
 
-/// 全局语言状态
 ValueNotifier<String> appLang = ValueNotifier("en");
 
 final GoogleTranslator _translator = GoogleTranslator();
