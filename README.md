@@ -26,5 +26,6 @@ Email: johnycjy-wm23@student.tarc.edu.my
 Password: johny731
 
 You may scan QR code to use our application
+path name : assets/images/weather_qrcode.jpeg
 
 
