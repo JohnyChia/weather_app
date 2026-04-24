@@ -1,17 +1,30 @@
 # weather_app
 
-A new Flutter project.
+Project Description
 
-## Getting Started
+This is a Flutter-based Weather Application with real-time weather data, charts, alarms, map integration, and admin management features.
+The system uses Supabase as backend and a custom Node.js weather API for weather data processing.
 
-This project is a starting point for a Flutter application.
+User Features
+-View current weather information
+-Hourly & 5-day weather forecast
+-UV index visualization
+-Interactive weather charts
+-Live weather map with risk markers
+-Location-based weather detection
+-Notification alerts for weather risks
 
-A few resources to get you started if this is your first Flutter project:
+Admin Features
+-Manage user accounts (activate / deactivate / delete)
+-Create and manage weather alarms
+-Override weather risk data
+-View all weather records
+-Monitor system-wide weather alerts
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Admin Login Credentials
+Email: johnycjy-wm23@student.tarc.edu.my
+Password: johny731
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+You may scan QR code to use our application
+
+
