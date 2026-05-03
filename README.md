@@ -31,5 +31,11 @@ path name : assets/images/weather_qrcode.jpeg
 Weather Screen
 [Weather Screen](screenshots/weather_screen.png)
 
+Astronomy Data
+![Astronomy](screenshots/astronomy.png)
+
+Live Weather Map
+![Live Weather](screenshots/live_weather.png)
+
 
 
