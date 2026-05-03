@@ -29,7 +29,7 @@ You may scan QR code to use our application
 path name : assets/images/weather_qrcode.jpeg
 
 Weather Screen
-[Weather Screen](screenshots/weather_screen.png)
+![Weather Screen](screenshots/weather_screen.png)
 
 Astronomy Data
 ![Astronomy](screenshots/astronomy.png)
